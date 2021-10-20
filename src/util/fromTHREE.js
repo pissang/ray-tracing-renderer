@@ -29,9 +29,6 @@ function convertMaterial(threeMaterial) {
   material.roughnessMap = convertTexture(threeMaterial.roughnessMap);
   material.metalnessMap = convertTexture(threeMaterial.metalnessMap);
 
-  material.solid = true;
-  material.shadowCaster = true;
-
   return material;
 }
 

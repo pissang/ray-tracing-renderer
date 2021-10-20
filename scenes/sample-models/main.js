@@ -76,6 +76,7 @@ controls.screenSpacePanning = true;
 
 const scene = new THREE.Scene();
 let renderList;
+let envLight;
 
 function resize() {
   if (renderer.domElement.parentElement) {
@@ -95,7 +96,7 @@ const tick = (time) => {
   camera.focus = controls.target.distanceTo(camera.position);
   stats.begin();
   renderer.sync(time);
-  renderer.render(renderList, RayTracingRenderer.fromTHREECamera(camera, CAMERA_APERTURE));
+  renderList && renderer.render(renderList, RayTracingRenderer.fromTHREECamera(camera, CAMERA_APERTURE));
   stats.end();
   animationFrameId = requestAnimationFrame(tick);
 };
@@ -172,6 +173,7 @@ function updateSceneWithModel(model) {
   updateGroundMeshFromModel(groundMesh, model);
 
   renderList = RayTracingRenderer.fromTHREEScene(scene).renderList;
+  envLight && renderList.push(envLight);
 }
 
 async function selectModelFromName(name) {
@@ -185,7 +187,7 @@ async function selectModelFromName(name) {
 async function selectEnvMapFromName(name) {
   const envMapEntry = ENV_MAPS_SAMPLES.find(item => item.name === name);
   const envMap = await RayTracingRenderer.loadRGBE(envMapEntry.path);
-  const envLight = new RayTracingRenderer.EnvironmentLight(envMap);
+  envLight = new RayTracingRenderer.EnvironmentLight(envMap);
 
   renderList = RayTracingRenderer.fromTHREEScene(scene).renderList;
   renderList.push(envLight);
