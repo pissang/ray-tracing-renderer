@@ -6,7 +6,7 @@ import { SceneNode } from './scene/SceneNode';
 import { Mesh } from './scene/Mesh';
 import { StandardMaterial } from './scene/StandardMaterial';
 import { Texture } from './scene/Texture';
-import { Geometry } from './scene/Geometry';
+import { Geometry, Attribute } from './scene/Geometry';
 import { RayTracingRenderer } from './RayTracingRenderer';
 import { loadRGBE, parseRGBE } from './util/loadRGBE';
 import { fromTHREECamera, fromTHREEScene } from './util/fromTHREE';
@@ -21,6 +21,7 @@ export {
   StandardMaterial,
   Texture,
   Geometry,
+  Attribute,
   SceneNode,
   Mesh,
   Camera,

@@ -4710,6 +4710,7 @@
 
   exports.ACESFilmicToneMapping = ACESFilmicToneMapping;
   exports.AmbientLight = AmbientLight;
+  exports.Attribute = Attribute;
   exports.Camera = Camera;
   exports.CineonToneMapping = CineonToneMapping;
   exports.DirectionalLight = DirectionalLight;
