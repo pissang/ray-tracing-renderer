@@ -20,4 +20,16 @@ export class Camera extends SceneNode {
   get projectionMatrix() {
     return mat4.perspective([], this.fov * Math.PI / 180, this.aspect, this.near, this.far);
   }
+
+  copy(source) {
+    this.fov = source.fov;
+    this.near = source.near;
+    this.far = source.far;
+    this.aspect = source.aspect;
+    this.zoom = source.zoom;
+    this.focus = source.focus;
+    this.aperture = source.aperture;
+
+    mat4.copy(this.matrixWorld, source.matrixWorld);
+  }
 }

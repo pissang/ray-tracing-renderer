@@ -23,7 +23,7 @@ export function mergeMeshesToGeometry(meshes) {
       computeGeometryNormals(geometry);
     }
     else {
-      vec3.forEach(geometry.normals.value, 3, 0, undefined, vec3.normalize);
+      vec3.forEach(geometry.normal.array, 3, 0, undefined, vec3.normalize);
     }
 
     vertexCount += geometry.position.count;
@@ -79,7 +79,7 @@ function mergeGeometry(geometryAndMaterialIndex, vertexCount, indexCount) {
 
     const meshIndices = geometry.indices.array;
     for (let i = 0; i < meshIndices.length; i++) {
-      indexAttrib[currentIndex + i] = currentVertex + meshIndices[i];
+      indexAttrib.array[currentIndex + i] = currentVertex + meshIndices[i];
     }
 
     for (let i = 0; i < vertexCount * 2;) {
@@ -88,7 +88,7 @@ function mergeGeometry(geometryAndMaterialIndex, vertexCount, indexCount) {
     }
 
     currentVertex += vertexCount;
-    currentIndex += meshIndices.count;
+    currentIndex += meshIndices.length;
     currentMesh++;
   }
 

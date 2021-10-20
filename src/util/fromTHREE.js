@@ -6,7 +6,7 @@ import {DirectionalLight} from '../scene/DirectionalLight';
 import {AmbientLight} from '../scene/AmbientLight';
 import {Camera} from '../scene/Camera';
 
-function converTexture(threeTexture) {
+function convertTexture(threeTexture) {
   if (!threeTexture) {
     return;
   }
@@ -17,16 +17,17 @@ function convertMaterial(threeMaterial) {
   const material = new StandardMaterial();
   material.color = threeMaterial.color.toArray();
   material.emissive = threeMaterial.emissive && threeMaterial.emissive.toArray();
+  material.transparent = threeMaterial.transparent;
   material.roughness = threeMaterial.roughness;
   material.metalness = threeMaterial.metalness;
   material.emissiveIntensity = threeMaterial.emissiveIntensity;
 
   material.normalScale = threeMaterial.normalScale && threeMaterial.normalScale.toArray();
 
-  material.map = converTexture(threeMaterial.map);
-  material.emissiveMap = converTexture(threeMaterial.emissiveMap);
-  material.roughnessMap = converTexture(threeMaterial.roughnessMap);
-  material.metalnessMap = converTexture(threeMaterial.metalnessMap);
+  material.map = convertTexture(threeMaterial.map);
+  material.emissiveMap = convertTexture(threeMaterial.emissiveMap);
+  material.roughnessMap = convertTexture(threeMaterial.roughnessMap);
+  material.metalnessMap = convertTexture(threeMaterial.metalnessMap);
 
   material.solid = true;
   material.shadowCaster = true;
@@ -60,10 +61,10 @@ export function fromTHREEScene(scene) {
       else if (!(child.material.isMeshStandardMaterial)) {
         console.warn(child, 'must use MeshStandardMaterial in order to be rendered.');
       } else {
-        const mesh = new Mesh({
-          material: convertMaterial(child.material),
-          geometry: convertGeometry(child.geometry)
-        });
+        const mesh = new Mesh(
+          convertGeometry(child.geometry),
+          convertMaterial(child.material)
+        );
         mesh.matrixWorld = new Float32Array(child.matrixWorld.elements);
         meshes.push(mesh);
       }
@@ -104,7 +105,7 @@ export function fromTHREEScene(scene) {
 export function fromTHREECamera(threeCamera, aperture) {
   const camera = new Camera(threeCamera.fov, threeCamera.aspect, threeCamera.near, threeCamera.far);
   threeCamera.updateWorldMatrix(true, false);
-  camera.matrixWorld = threeCamera.matrixWorld;
+  camera.matrixWorld = threeCamera.matrixWorld.elements.slice();
   if (aperture) {
     camera.aperture = aperture;
   }

@@ -136,6 +136,7 @@ function makePrimitiveInfo(geometry) {
     vec3.max(max, max, v1);
     vec3.max(max, max, v2);
 
+    const faceNormal = [];
     const info = {
       bounds: bounds,
       center: [
@@ -144,7 +145,7 @@ function makePrimitiveInfo(geometry) {
         (min[2] + max[2]) / 2
       ],
       indices: [i0, i1, i2],
-      faceNormal: vec3.cross([], e1, e0).normalize(),
+      faceNormal: vec3.normalize(faceNormal, vec3.cross(faceNormal, e1, e0)),
       materialIndex: materialMeshIndex.array[i0 * 2]
     };
 

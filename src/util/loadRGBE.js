@@ -4,6 +4,7 @@ const toChar = String.fromCharCode;
 
 const MINELEN = 8;
 const MAXELEN = 0x7fff;
+
 function setToPixels(rgbe, buffer, offset) {
   buffer[offset] = rgbe[0];
   buffer[offset + 1] = rgbe[1];
@@ -87,13 +88,14 @@ function readColors(scan, buffer, offset, xmax) {
 }
 
 export function parseRGBE(arrayBuffer) {
-  var data = new Uint8Array(arrayBuffer);
-  var size = data.length;
+  const data = new Uint8Array(arrayBuffer);
+  const size = data.length;
   if (uint82string(data, 0, 2) !== '#?') {
     return;
   }
+  let i;
   // find empty line, next line is resolution info
-  for (var i = 2; i < size; i++) {
+  for (i = 2; i < size; i++) {
     if (toChar(data[i]) === '\n' && toChar(data[i+1]) === '\n') {
       break;
     }
@@ -120,6 +122,7 @@ export function parseRGBE(arrayBuffer) {
   }
 
   // read and decode actual data
+  let offset = i + 1;
   let scanline = [];
   // memzero
   for (let x = 0; x < width; x++) {
@@ -131,7 +134,7 @@ export function parseRGBE(arrayBuffer) {
   let pixels = new Float32Array(width * height * 4);
   let offset2 = 0;
   for (let y = 0; y < height; y++) {
-    let offset = readColors(scanline, data, offset, width);
+    offset = readColors(scanline, data, offset, width);
     if (!offset) {
       return null;
     }

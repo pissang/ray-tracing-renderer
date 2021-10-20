@@ -52,6 +52,11 @@ export class StandardMaterial {
      */
     this.metalnessMap = null;
 
+    /**
+     * @property {boolean}
+     */
+    this.transparent = false;
+
     this.solid = true;
     this.shadowCaster = true;
   }

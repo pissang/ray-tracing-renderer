@@ -114,7 +114,7 @@ export function makeRenderingPipeline({
   let sampleRenderedCallback = () => {};
 
   const lastCamera = new Camera();
-  lastCamera.matrixWorld = mat4.fromTranslation(1, 1, 1);
+  lastCamera.matrixWorld = mat4.fromTranslation([], [1, 1, 1]);
 
   let screenWidth = 0;
   let screenHeight = 0;
@@ -214,7 +214,7 @@ export function makeRenderingPipeline({
   }
 
   function areCamerasEqual(cam1, cam2) {
-    return numberArraysEqual(cam1.matrixWorld.elements, cam2.matrixWorld.elements) &&
+    return numberArraysEqual(cam1.matrixWorld, cam2.matrixWorld) &&
       cam1.aspect === cam2.aspect &&
       cam1.fov === cam2.fov;
   }

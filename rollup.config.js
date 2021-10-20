@@ -7,6 +7,7 @@ function build() {
     output: {
       file: 'build/RayTracingRenderer.js',
       format: 'umd',
+      sourcemap: true,
       globals: {
         three: 'THREE'
       },

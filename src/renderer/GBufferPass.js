@@ -16,7 +16,7 @@ export function makeGBufferPass(gl, { materialBuffer, mergedMesh }) {
 
   const geometry = mergedMesh.geometry;
 
-  const elementCount = geometry.getIndex().count;
+  const elementCount = geometry.indices.count;
 
   const vao = gl.createVertexArray();
 
@@ -65,13 +65,13 @@ export function makeGBufferPass(gl, { materialBuffer, mergedMesh }) {
 }
 
 function uploadAttributes(gl, renderPass, geometry) {
-  setAttribute(gl, renderPass.attribLocs.aPosition, geometry.getAttribute('position'));
-  setAttribute(gl, renderPass.attribLocs.aNormal, geometry.getAttribute('normal'));
-  setAttribute(gl, renderPass.attribLocs.aUv, geometry.getAttribute('uv'));
-  setAttribute(gl, renderPass.attribLocs.aMaterialMeshIndex, geometry.getAttribute('materialMeshIndex'));
+  setAttribute(gl, renderPass.attribLocs.aPosition, geometry.position);
+  setAttribute(gl, renderPass.attribLocs.aNormal, geometry.normal);
+  setAttribute(gl, renderPass.attribLocs.aUv, geometry.uv);
+  setAttribute(gl, renderPass.attribLocs.aMaterialMeshIndex, geometry.materialMeshIndex);
 
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, geometry.getIndex().array, gl.STATIC_DRAW);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, geometry.indices.array, gl.STATIC_DRAW);
 }
 
 function setAttribute(gl, location, bufferAttribute) {

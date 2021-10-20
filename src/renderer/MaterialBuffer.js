@@ -126,14 +126,14 @@ function uploadToUniformBuffer(gl, program, bufferData) {
   const materialBuffer = makeUniformBuffer(gl, program, 'Materials');
 
   materialBuffer.set('Materials.colorAndMaterialType[0]', interleave(
-    { data: [].concat(...bufferData.color.map(d => d.toArray())), channels: 3 },
+    { data: [].concat(...bufferData.color), channels: 3 },
     { data: bufferData.type, channels: 1}
   ));
 
   materialBuffer.set('Materials.roughnessMetalnessNormalScale[0]', interleave(
     { data: bufferData.roughness, channels: 1 },
     { data: bufferData.metalness, channels: 1 },
-    { data: [].concat(...bufferData.normalScale.map(d => d.toArray())), channels: 2 }
+    { data: [].concat(...bufferData.normalScale), channels: 2 }
   ));
 
   materialBuffer.set('Materials.diffuseNormalRoughnessMetalnessMapIndex[0]', interleave(

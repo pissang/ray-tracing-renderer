@@ -9,6 +9,7 @@ import { Texture } from './scene/Texture';
 import { Geometry } from './scene/Geometry';
 import { RayTracingRenderer } from './RayTracingRenderer';
 import { loadRGBE, parseRGBE } from './util/loadRGBE';
+import { fromTHREECamera, fromTHREEScene } from './util/fromTHREE';
 
 export * from './constants';
 
@@ -27,5 +28,8 @@ export {
   RayTracingRenderer as Renderer,
 
   loadRGBE,
-  parseRGBE
+  parseRGBE,
+
+  fromTHREECamera,
+  fromTHREEScene
 };

@@ -15,21 +15,25 @@ const ENV_MAPS_SAMPLES = [
 const BABYLON_JS_SAMPLE_MODELS = [
   {
     path: 'https://models.babylonjs.com/CornellBox/cornellBox.glb',
+    // path: './asset/cornellBox.glb',
     name: 'Cornell Box',
     license: 'https://creativecommons.org/licenses/by/4.0/',
   },
   {
     path: 'https://models.babylonjs.com/PBR_Spheres.glb',
+    // path: './asset/PBR_Spheres.glb',
     name: 'PBR Spheres',
     license: 'https://creativecommons.org/licenses/by/4.0/',
   },
   {
     path: 'https://models.babylonjs.com/Lee-Perry-Smith-Head/head.glb',
+    // path: './asset/Lee-Perry-Smith-Head.glb',
     name: 'Lee Perry Smith Head',
     license: 'https://creativecommons.org/licenses/by/4.0/',
   },
   {
     path: 'https://models.babylonjs.com/Georgia-Tech-Dragon/dragon.glb',
+    // path: './asset/Georgia-Tech-Dragon.glb',
     name: 'Georgia Tech Dragon',
     license: 'https://creativecommons.org/licenses/by/4.0/',
   },
@@ -41,7 +45,6 @@ const INITIAL_ENV_MAP = ENV_MAPS_SAMPLES[0];
 
 let currentModelLoaded = null;
 let groundMesh = null;
-let currentEnvLight = null;
 
 const renderer = new RayTracingRenderer.Renderer();
 
@@ -168,7 +171,7 @@ function updateSceneWithModel(model) {
   updateCameraFromModel(camera, model);
   updateGroundMeshFromModel(groundMesh, model);
 
-  renderList = RayTracingRenderer.fromTHREEScene(scene);
+  renderList = RayTracingRenderer.fromTHREEScene(scene).renderList;
 }
 
 async function selectModelFromName(name) {
@@ -179,29 +182,13 @@ async function selectModelFromName(name) {
   console.log(`Switch to Model '${name}'`);
 }
 
-async function loadEnvironmentMap(path) {
-  const loadPromise = new Promise((resolve) =>
-    new THREE.RGBELoader().load(path, (environmentMapTexture) =>
-      resolve(environmentMapTexture),
-    ),
-  );
-
-  const environmentMap = await loadPromise;
-  environmentMap.encoding = THREE.LinearEncoding;
-
-  return environmentMap;
-}
-
 async function selectEnvMapFromName(name) {
   const envMapEntry = ENV_MAPS_SAMPLES.find(item => item.name === name);
-  const envMap = await loadEnvironmentMap(envMapEntry.path);
-  const envLight = new THREE.EnvironmentLight(envMap);
+  const envMap = await RayTracingRenderer.loadRGBE(envMapEntry.path);
+  const envLight = new RayTracingRenderer.EnvironmentLight(envMap);
 
-  if (currentEnvLight) scene.remove(currentEnvLight);
-  scene.add(envLight);
-  currentEnvLight = envLight;
-
-  renderList = RayTracingRenderer.fromTHREEScene(scene);
+  renderList = RayTracingRenderer.fromTHREEScene(scene).renderList;
+  renderList.push(envLight);
   console.log(`Switch to Env Map '${name}'`);
 }
 
