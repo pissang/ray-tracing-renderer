@@ -13,7 +13,7 @@ export function makeMaterialBuffer(gl, materials) {
 
   const bufferData = {};
 
-  bufferData.color = materials.map(m => m.color);
+  bufferData.color = materials.map(m => m.color.slice(0, 3));
   bufferData.roughness = materials.map(m => m.roughness);
   bufferData.metalness = materials.map(m => m.metalness);
   bufferData.normalScale = materials.map(m => m.normalScale);
