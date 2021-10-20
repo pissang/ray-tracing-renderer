@@ -1,6 +1,6 @@
 import { loadExtensions } from './renderer/glUtil';
 import { makeRenderingPipeline } from './renderer/RenderingPipeline';
-import * as THREE from 'three';
+import * as constants from './constants';
 
 const glRequiredExtensions = [
   'EXT_color_buffer_float', // enables rendering to float buffers
@@ -27,8 +27,10 @@ export function RayTracingRenderer(params = {}) {
   const optionalExtensions = loadExtensions(gl, glOptionalExtensions);
 
   let pipeline = null;
-  const size = new THREE.Vector2();
+  const size = {width: 0, height: 0};
   let pixelRatio = 1;
+
+  let oldRenderList = [];
 
   const module = {
     bounces: 2,
@@ -37,14 +39,12 @@ export function RayTracingRenderer(params = {}) {
     needsUpdate: true,
     onSampleRendered: null,
     renderWhenOffFocus: true,
-    toneMapping: THREE.LinearToneMapping,
+    toneMapping: constants.ACESFilmicToneMapping,
     toneMappingExposure: 1,
     toneMappingWhitePoint: 1,
   };
 
-  function initScene(scene) {
-    scene.updateMatrixWorld();
-
+  function initRenderList(renderList, background) {
     const toneMappingParams = {
       exposure: module.toneMappingExposure,
       whitePoint: module.toneMappingWhitePoint,
@@ -53,7 +53,7 @@ export function RayTracingRenderer(params = {}) {
 
     const bounces = module.bounces;
 
-    pipeline = makeRenderingPipeline({gl, optionalExtensions, scene, toneMappingParams, bounces});
+    pipeline = makeRenderingPipeline({gl, optionalExtensions, renderList, background, toneMappingParams, bounces});
 
     pipeline.onSampleRendered = (...args) => {
       if (module.onSampleRendered) {
@@ -66,7 +66,9 @@ export function RayTracingRenderer(params = {}) {
   }
 
   module.setSize = (width, height, updateStyle = true) => {
-    size.set(width, height);
+    size.width = width;
+    size.height = height;
+
     canvas.width = size.width * pixelRatio;
     canvas.height = size.height * pixelRatio;
 
@@ -80,19 +82,18 @@ export function RayTracingRenderer(params = {}) {
     }
   };
 
-  module.getSize = (target) => {
-    if (!target) {
-      target = new THREE.Vector2();
-    }
-
-    return target.copy(size);
+  module.getSize = () => {
+    return {
+      width: size.width,
+      height: size.height
+    };
   };
 
-  module.setPixelRatio = (x) => {
-    if (!x) {
+  module.setPixelRatio = (pr) => {
+    if (!pr) {
       return;
     }
-    pixelRatio = x;
+    pixelRatio = pr;
     module.setSize(size.width, size.height, false);
   };
 
@@ -120,7 +121,19 @@ export function RayTracingRenderer(params = {}) {
 
   let lastFocus = false;
 
-  module.render = (scene, camera) => {
+  function isSameRenderList(a, b) {
+    if (a.length !== b.length) {
+      return false;
+    }
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  module.render = (renderList, camera, background) => {
     if (!module.renderWhenOffFocus) {
       const hasFocus = document.hasFocus();
       if (!hasFocus) {
@@ -132,8 +145,9 @@ export function RayTracingRenderer(params = {}) {
       }
     }
 
-    if (module.needsUpdate) {
-      initScene(scene);
+    if (module.needsUpdate || !isSameRenderList(oldRenderList, renderList)) {
+      initRenderList(renderList, background);
+      oldRenderList = renderList.slice();
     }
 
     if (isNaN(currentTime)) {
@@ -150,7 +164,6 @@ export function RayTracingRenderer(params = {}) {
     isValidTime = 1;
     currentTime = NaN;
 
-    camera.updateMatrixWorld();
 
     if(module.maxHardwareUsage) {
       // render new sample for the entire screen

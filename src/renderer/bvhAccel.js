@@ -2,10 +2,22 @@
 // Uses the surface area heuristic (SAH) algorithm for efficient partitioning
 // http://www.pbr-book.org/3ed-2018/Primitives_and_Intersection_Acceleration/Bounding_Volume_Hierarchies.html
 
-import { Box3, Vector3 }  from 'three';
 import { partition, nthElement } from './bvhUtil';
+import {vec3} from 'gl-matrix';
 
-const size = new Vector3();
+
+class Box3 {
+  constructor() {
+    this.min = [Infinity, Infinity, Infinity];
+    this.max = [-Infinity, -Infinity, -Infinity];
+  }
+
+  union(target) {
+    vec3.min(this.min, this.min, target.min);
+    vec3.max(this.max, this.max, target.max);
+    return this;
+  }
+}
 
 export function bvhAccel(geometry) {
   const primitiveInfo = makePrimitiveInfo(geometry);
@@ -34,7 +46,7 @@ export function flattenBvh(bvh) {
         const p = node.primitives[i];
         flat.push(
           p.indices[0], p.indices[1], p.indices[2], node.primitives.length,
-          p.faceNormal.x, p.faceNormal.y, p.faceNormal.z, p.materialIndex
+          p.faceNormal[0], p.faceNormal[1], p.faceNormal[2], p.materialIndex
         );
         isBounds.push(false);
       }
@@ -42,8 +54,8 @@ export function flattenBvh(bvh) {
       const bounds = node.bounds;
 
       flat.push(
-        bounds.min.x, bounds.min.y, bounds.min.z, splitAxisMap[node.splitAxis],
-        bounds.max.x, bounds.max.y, bounds.max.z, null // pointer to second shild
+        bounds.min[0], bounds.min[1], bounds.min[2], splitAxisMap[node.splitAxis],
+        bounds.max[0], bounds.max[1], bounds.max[2], null // pointer to second shild
       );
 
       const i = flat.length - 1;
@@ -91,15 +103,15 @@ export function flattenBvh(bvh) {
 
 function makePrimitiveInfo(geometry) {
   const primitiveInfo = [];
-  const indices = geometry.getIndex().array;
-  const position = geometry.getAttribute('position');
-  const materialMeshIndex = geometry.getAttribute('materialMeshIndex');
+  const indices = geometry.indices.array;
+  const position = geometry.position;
+  const materialMeshIndex = geometry.materialMeshIndex;
 
-  const v0 = new Vector3();
-  const v1 = new Vector3();
-  const v2 = new Vector3();
-  const e0 = new Vector3();
-  const e1 = new Vector3();
+  const v0 = [0, 0, 0];
+  const v1 = [0, 0, 0];
+  const v2 = [0, 0, 0];
+  const e0 = [0, 0, 0];
+  const e1 = [0, 0, 0];
 
   for (let i = 0; i < indices.length; i += 3) {
     const i0 = indices[i];
@@ -107,23 +119,33 @@ function makePrimitiveInfo(geometry) {
     const i2 = indices[i + 2];
 
     const bounds = new Box3();
+    const min = bounds.min;
+    const max = bounds.max;
 
-    v0.fromBufferAttribute(position, i0);
-    v1.fromBufferAttribute(position, i1);
-    v2.fromBufferAttribute(position, i2);
-    e0.subVectors(v2, v0);
-    e1.subVectors(v1, v0);
+    position.getItem(v0, i0);
+    position.getItem(v1, i1);
+    position.getItem(v2, i2);
 
-    bounds.expandByPoint(v0);
-    bounds.expandByPoint(v1);
-    bounds.expandByPoint(v2);
+    vec3.sub(e0, v2, v0);
+    vec3.sub(e1, v1, v0);
+
+    vec3.min(min, min, v0);
+    vec3.min(min, min, v1);
+    vec3.min(min, min, v2);
+    vec3.max(max, max, v0);
+    vec3.max(max, max, v1);
+    vec3.max(max, max, v2);
 
     const info = {
       bounds: bounds,
-      center: bounds.getCenter(new Vector3()),
+      center: [
+        (min[0] + max[0]) / 2,
+        (min[1] + max[1]) / 2,
+        (min[2] + max[2]) / 2
+      ],
       indices: [i0, i1, i2],
-      faceNormal: new Vector3().crossVectors(e1, e0).normalize(),
-      materialIndex: materialMeshIndex.getX(i0)
+      faceNormal: vec3.cross([], e1, e0).normalize(),
+      materialIndex: materialMeshIndex.array[i0 * 2]
     };
 
     primitiveInfo.push(info);
@@ -145,10 +167,10 @@ function recursiveBuild(primitiveInfo, start, end) {
   } else {
     const centroidBounds = new Box3();
     for (let i = start; i < end; i++) {
-      centroidBounds.expandByPoint(primitiveInfo[i].center);
+      vec3.min(centroidBounds.min, centroidBounds.min, primitiveInfo[i].center);
+      vec3.max(centroidBounds.max, centroidBounds.max, primitiveInfo[i].center);
     }
     const dim = maximumExtent(centroidBounds);
-
 
     let mid = Math.floor((start + end) / 2);
 
@@ -245,13 +267,14 @@ function makeInteriorNode(splitAxis, child0, child1) {
     splitAxis,
   };
 }
+const size = [0, 0, 0];
 
 function maximumExtent(box3) {
-  box3.getSize(size);
-  if (size.x > size.z) {
-    return size.x > size.y ? 'x' : 'y';
+  vec3.sub(size, box3.max, box3.min);
+  if (size[0] > size[2]) {
+    return size[0] > size[1] ? '0' : '1';
   } else {
-    return size.z > size.y ? 'z' : 'y';
+    return size[2] > size[1] ? '2' : '1';
   }
 }
 
@@ -266,6 +289,6 @@ function boxOffset(box3, dim, v) {
 }
 
 function surfaceArea(box3) {
-  box3.getSize(size);
-  return 2 * (size.x * size.z + size.x * size.y + size.z * size.y);
+  vec3.sub(size, box3.max, box3.min);
+  return 2 * (size[0] * size[2] + size[0] * size[1] + size[2] * size[1]);
 }

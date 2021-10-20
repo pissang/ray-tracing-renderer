@@ -1,4 +1,5 @@
-import { BufferGeometry, BufferAttribute } from 'three';
+import { Attribute, Geometry } from '../scene/Geometry';
+import {mat4, vec3} from 'gl-matrix';
 
 export function mergeMeshesToGeometry(meshes) {
 
@@ -9,29 +10,24 @@ export function mergeMeshesToGeometry(meshes) {
   const materialIndexMap = new Map();
 
   for (const mesh of meshes) {
-    if (!mesh.visible) {
-      continue;
-    }
+    let geometry = mesh.geometry;
 
-    const geometry = mesh.geometry.isBufferGeometry ?
-      cloneBufferGeometry(mesh.geometry, ['position', 'normal', 'uv']) : // BufferGeometry object
-      new BufferGeometry().fromGeometry(mesh.geometry); // Geometry object
-
-    const index = geometry.getIndex();
+    const index = geometry.indices;
     if (!index) {
       addFlatGeometryIndices(geometry);
     }
 
-    geometry.applyMatrix(mesh.matrixWorld);
+    geometry = transformGeometry(geometry, mesh.matrixWorld);
 
-    if (!geometry.getAttribute('normal')) {
-      geometry.computeVertexNormals();
-    } else {
-      geometry.normalizeNormals();
+    if (!geometry.normal) {
+      computeGeometryNormals(geometry);
+    }
+    else {
+      vec3.forEach(geometry.normals.value, 3, 0, undefined, vec3.normalize);
     }
 
-    vertexCount += geometry.getAttribute('position').count;
-    indexCount += geometry.getIndex().count;
+    vertexCount += geometry.position.count;
+    indexCount += geometry.indices.count;
 
     const material = mesh.material;
     let materialIndex = materialIndexMap.get(material);
@@ -55,66 +51,52 @@ export function mergeMeshesToGeometry(meshes) {
 }
 
 function mergeGeometry(geometryAndMaterialIndex, vertexCount, indexCount) {
-  const positionAttrib = new BufferAttribute(new Float32Array(3 * vertexCount), 3, false);
-  const normalAttrib = new BufferAttribute(new Float32Array(3 * vertexCount), 3, false);
-  const uvAttrib = new BufferAttribute(new Float32Array(2 * vertexCount), 2, false);
-  const materialMeshIndexAttrib = new BufferAttribute(new Int32Array(2 * vertexCount), 2, false);
-  const indexAttrib = new BufferAttribute(new Uint32Array(indexCount), 1, false);
+  const positionAttrib = new Attribute(new Float32Array(3 * vertexCount), 3);
+  const normalAttrib = new Attribute(new Float32Array(3 * vertexCount), 3);
+  const uvAttrib = new Attribute(new Float32Array(2 * vertexCount), 2);
+  const indexAttrib = new Attribute(new Uint32Array(indexCount), 1);
 
-  const mergedGeometry = new BufferGeometry();
-  mergedGeometry.addAttribute('position', positionAttrib);
-  mergedGeometry.addAttribute('normal', normalAttrib);
-  mergedGeometry.addAttribute('uv', uvAttrib);
-  mergedGeometry.addAttribute('materialMeshIndex', materialMeshIndexAttrib);
-  mergedGeometry.setIndex(indexAttrib);
+  const materialMeshIndexAttrib = new Attribute(new Int32Array(2 * vertexCount), 2);
+
+  const mergedGeometry = new Geometry({
+    position: positionAttrib,
+    normal: normalAttrib,
+    uv: uvAttrib,
+    indices: indexAttrib
+  });
+  mergedGeometry.materialMeshIndex = materialMeshIndexAttrib;
 
   let currentVertex = 0;
   let currentIndex = 0;
   let currentMesh = 1;
 
   for (const { geometry, materialIndex } of geometryAndMaterialIndex) {
-    const vertexCount = geometry.getAttribute('position').count;
-    mergedGeometry.merge(geometry, currentVertex);
+    const vertexCount = geometry.position.count;
 
-    const meshIndex = geometry.getIndex();
-    for (let i = 0; i < meshIndex.count; i++) {
-      indexAttrib.setX(currentIndex + i, currentVertex + meshIndex.getX(i));
+    ['position', 'normal', 'uv'].forEach(function (attr) {
+      mergedGeometry[attr].array.set(geometry[attr].array, currentVertex * geometry[attr].itemSize);
+    });
+
+    const meshIndices = geometry.indices.array;
+    for (let i = 0; i < meshIndices.length; i++) {
+      indexAttrib[currentIndex + i] = currentVertex + meshIndices[i];
     }
 
-    for (let i = 0; i < vertexCount; i++) {
-      materialMeshIndexAttrib.setXY(currentVertex + i, materialIndex, currentMesh);
+    for (let i = 0; i < vertexCount * 2;) {
+      materialMeshIndexAttrib.array[currentVertex * 2 + i++] = materialIndex;
+      materialMeshIndexAttrib.array[currentVertex * 2 + i++] = currentMesh;
     }
 
     currentVertex += vertexCount;
-    currentIndex += meshIndex.count;
+    currentIndex += meshIndices.count;
     currentMesh++;
   }
 
   return mergedGeometry;
 }
 
-// Similar to buffergeometry.clone(), except we only copy
-// specific attributes instead of everything
-function cloneBufferGeometry(bufferGeometry, attributes) {
-  const newGeometry = new BufferGeometry();
-
-  for (const name of attributes) {
-    const attrib = bufferGeometry.getAttribute(name);
-    if (attrib) {
-      newGeometry.addAttribute(name, attrib.clone());
-    }
-  }
-
-  const index = bufferGeometry.getIndex();
-  if (index) {
-    newGeometry.setIndex(index);
-  }
-
-  return newGeometry;
-}
-
 function addFlatGeometryIndices(geometry) {
-  const position = geometry.getAttribute('position');
+  const position = geometry.position;
 
   if (!position) {
     console.warn('No position attribute');
@@ -127,7 +109,81 @@ function addFlatGeometryIndices(geometry) {
     index[i] = i;
   }
 
-  geometry.setIndex(new BufferAttribute(index, 1, false));
+  geometry.indices = new Attribute(index, 1, false);
 
   return geometry;
+}
+
+function transformGeometry(geometry, matrix) {
+  const newGeometry = new Geometry({
+    position: new Attribute(geometry.position.array.slice(), geometry.position.itemSize),
+    normal: geometry.normal && new Attribute(geometry.normal.array.slice(), geometry.normal.itemSize),
+    // No need to clone uv
+    uv: geometry.uv && new Attribute(geometry.uv.array, geometry.uv.itemSize),
+    indices: geometry.indices && new Attribute(geometry.indices.array, geometry.indices.itemSize),
+  });
+
+  // Normal Matrix
+  const inverseTransposeMatrix = mat4.create();
+  mat4.invert(inverseTransposeMatrix, matrix);
+  mat4.transpose(inverseTransposeMatrix, inverseTransposeMatrix);
+
+  vec3.forEach(newGeometry.position.array, 3, 0, null, vec3.transformMat4, matrix);
+  if (newGeometry.normal) {
+      vec3.forEach(newGeometry.normal.array, 3, 0, null, vec3.transformMat4, inverseTransposeMatrix);
+  }
+  return newGeometry;
+}
+
+function computeGeometryNormals(geometry) {
+  const indices = geometry.indices;
+  const positions = geometry.position.array;
+  geometry.normal = new Attribute(new Float32Array(positions.length), 3);
+  const normals = geometry.normal.array;
+
+  const p1 = vec3.create();
+  const p2 = vec3.create();
+  const p3 = vec3.create();
+
+  const v21 = vec3.create();
+  const v32 = vec3.create();
+
+  const n = vec3.create();
+
+  const len = indices ? indices.length : this.vertexCount;
+  let i1, i2, i3;
+  for (let f = 0; f < len;) {
+      if (indices) {
+          i1 = indices[f++];
+          i2 = indices[f++];
+          i3 = indices[f++];
+      }
+      else {
+          i1 = f++;
+          i2 = f++;
+          i3 = f++;
+      }
+
+      vec3.set(p1, positions[i1*3], positions[i1*3+1], positions[i1*3+2]);
+      vec3.set(p2, positions[i2*3], positions[i2*3+1], positions[i2*3+2]);
+      vec3.set(p3, positions[i3*3], positions[i3*3+1], positions[i3*3+2]);
+
+      vec3.sub(v21, p1, p2);
+      vec3.sub(v32, p2, p3);
+      vec3.cross(n, v21, v32);
+      // Already be weighted by the triangle area
+      for (let i = 0; i < 3; i++) {
+          normals[i1*3+i] = normals[i1*3+i] + n[i];
+          normals[i2*3+i] = normals[i2*3+i] + n[i];
+          normals[i3*3+i] = normals[i3*3+i] + n[i];
+      }
+  }
+
+  for (let i = 0; i < normals.length;) {
+      vec3.set(n, normals[i], normals[i+1], normals[i+2]);
+      vec3.normalize(n, n);
+      normals[i++] = n[0];
+      normals[i++] = n[1];
+      normals[i++] = n[2];
+  }
 }

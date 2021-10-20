@@ -1,4 +1,5 @@
 // Envinronment maps
+/* global RayTracingRenderer, Stats */
 const ENV_MAPS_SAMPLES = [
   {
     path: '../envmaps/gray-background-with-dirlight.hdr',
@@ -42,12 +43,12 @@ let currentModelLoaded = null;
 let groundMesh = null;
 let currentEnvLight = null;
 
-const renderer = new THREE.RayTracingRenderer();
+const renderer = new RayTracingRenderer.Renderer();
 
 renderer.gammaOutput = true;
 renderer.gammaFactor = 2.2;
 renderer.setPixelRatio(1.0);
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMapping = RayTracingRenderer.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 renderer.toneMappingWhitePoint = 5;
 
@@ -63,14 +64,15 @@ stats.domElement.style.left = '0px';
 stats.domElement.style.top = '0px';
 document.body.appendChild(stats.domElement);
 
-const camera = new THREE.LensCamera();
-camera.fov = 35;
-camera.aperture = 0.01;
+const CAMERA_APERTURE = 0.01;
 
+const camera = new THREE.PerspectiveCamera();
+camera.fov = 35;
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.screenSpacePanning = true;
 
 const scene = new THREE.Scene();
+let renderList;
 
 function resize() {
   if (renderer.domElement.parentElement) {
@@ -90,7 +92,7 @@ const tick = (time) => {
   camera.focus = controls.target.distanceTo(camera.position);
   stats.begin();
   renderer.sync(time);
-  renderer.render(scene, camera);
+  renderer.render(renderList, RayTracingRenderer.fromTHREECamera(camera, CAMERA_APERTURE));
   stats.end();
   animationFrameId = requestAnimationFrame(tick);
 };
@@ -162,10 +164,11 @@ function updateSceneWithModel(model) {
   }
 
   scene.add(model);
-  renderer.needsUpdate = true;
   currentModelLoaded = model;
   updateCameraFromModel(camera, model);
   updateGroundMeshFromModel(groundMesh, model);
+
+  renderList = RayTracingRenderer.fromTHREEScene(scene);
 }
 
 async function selectModelFromName(name) {
@@ -198,8 +201,7 @@ async function selectEnvMapFromName(name) {
   scene.add(envLight);
   currentEnvLight = envLight;
 
-  renderer.needsUpdate = true;
-
+  renderList = RayTracingRenderer.fromTHREEScene(scene);
   console.log(`Switch to Env Map '${name}'`);
 }
 

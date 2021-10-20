@@ -1,13 +1,13 @@
 import fragment from './glsl/toneMap.frag';
 import { makeRenderPass } from './RenderPass';
-import * as THREE from 'three';
+import * as constants from '../constants';
 
 const toneMapFunctions = {
-  [THREE.LinearToneMapping]: 'linear',
-  [THREE.ReinhardToneMapping]: 'reinhard',
-  [THREE.Uncharted2ToneMapping]: 'uncharted2',
-  [THREE.CineonToneMapping]: 'cineon',
-  [THREE.ACESFilmicToneMapping]: 'acesFilmic'
+  [constants.LinearToneMapping]: 'linear',
+  [constants.ReinhardToneMapping]: 'reinhard',
+  [constants.Uncharted2ToneMapping]: 'uncharted2',
+  [constants.CineonToneMapping]: 'cineon',
+  [constants.ACESFilmicToneMapping]: 'acesFilmic'
 };
 
 export function makeToneMapPass(gl, params) {

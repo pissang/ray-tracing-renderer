@@ -1,4 +1,3 @@
-import { decomposeScene } from './decomposeScene';
 import { makeFramebuffer } from './Framebuffer';
 import { makeFullscreenQuad } from './FullscreenQuad';
 import { makeGBufferPass } from './GBufferPass';
@@ -12,12 +11,49 @@ import { clamp, numberArraysEqual } from './util';
 import { makeTileRender } from './TileRender';
 import { makeDepthTarget, makeTexture } from './Texture';
 import noiseBase64 from './texture/noise';
-import { PerspectiveCamera, Vector2 } from 'three';
+import {Mesh} from '../scene/Mesh';
+import {DirectionalLight} from '../scene/DirectionalLight';
+import {AmbientLight} from '../scene/AmbientLight';
+import {EnvironmentLight} from '../scene/EnvironmentLight';
+import {Camera} from '../scene/Camera';
+
+import {mat4} from 'gl-matrix';
+
+
+function prepareRender(renderList) {
+  const meshes = [];
+  const directionalLights = [];
+  const ambientLights = [];
+  const environmentLights = [];
+  for (let i = 0; i < renderList.length; i++) {
+    const item = renderList[i];
+    if (item instanceof Mesh) {
+      meshes.push(item);
+    }
+    else if (item instanceof DirectionalLight) {
+      directionalLights.push(item);
+    }
+    else if (item instanceof AmbientLight) {
+      ambientLights.push(item);
+    }
+    else if (item instanceof EnvironmentLight) {
+      environmentLights.push(item);
+    }
+  }
+
+  return {
+    meshes,
+    directionalLights,
+    ambientLights,
+    environmentLights
+  };
+}
 
 export function makeRenderingPipeline({
     gl,
     optionalExtensions,
-    scene,
+    renderList,
+    background,
     toneMappingParams,
     bounces, // number of global illumination bounces
   }) {
@@ -40,7 +76,8 @@ export function makeRenderingPipeline({
 
   const previewSize = makeRenderSize(gl);
 
-  const decomposedScene = decomposeScene(scene);
+  const decomposedScene = prepareRender(renderList);
+  decomposedScene.background = background;
 
   const mergedMesh = mergeMeshesToGeometry(decomposedScene.meshes);
 
@@ -48,7 +85,7 @@ export function makeRenderingPipeline({
 
   const fullscreenQuad = makeFullscreenQuad(gl);
 
-  const rayTracePass = makeRayTracePass(gl, { bounces, decomposedScene, fullscreenQuad, materialBuffer, mergedMesh, optionalExtensions, scene });
+  const rayTracePass = makeRayTracePass(gl, { bounces, decomposedScene, fullscreenQuad, materialBuffer, mergedMesh, optionalExtensions });
 
   const reprojectPass = makeReprojectPass(gl, { fullscreenQuad, maxReprojectedSamples });
 
@@ -76,14 +113,13 @@ export function makeRenderingPipeline({
 
   let sampleRenderedCallback = () => {};
 
-  const lastCamera = new PerspectiveCamera();
-  lastCamera.position.set(1, 1, 1);
-  lastCamera.updateMatrixWorld();
+  const lastCamera = new Camera();
+  lastCamera.matrixWorld = mat4.fromTranslation(1, 1, 1);
 
   let screenWidth = 0;
   let screenHeight = 0;
 
-  const fullscreenScale = new Vector2(1, 1);
+  const fullscreenScale = { x: 1, y: 1};
 
   let lastToneMappedScale = fullscreenScale;
 
@@ -237,7 +273,7 @@ export function makeRenderingPipeline({
     });
 
     lastToneMappedTexture = lightTexture;
-    lastToneMappedScale = lightScale.clone();
+    lastToneMappedScale = {x: lightScale.x, y: lightScale.y};
   }
 
   function renderGBuffer() {

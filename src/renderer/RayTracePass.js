@@ -51,7 +51,7 @@ export function makeRayTracePass(gl, {
   }
 
   function setCamera(camera) {
-    renderPass.setUniform('camera.transform', camera.matrixWorld.elements);
+    renderPass.setUniform('camera.transform', camera.matrixWorld);
     renderPass.setUniform('camera.aspect', camera.aspect);
     renderPass.setUniform('camera.fov', 0.5 / Math.tan(0.5 * Math.PI * camera.fov / 180));
   }
@@ -129,14 +129,14 @@ function makeRenderPassFromScene({
   // create bounding volume hierarchy from a static scene
   const bvh = bvhAccel(geometry, materialIndices);
   const flattenedBvh = flattenBvh(bvh);
-  const numTris = geometry.index.count / 3;
+  const numTris = geometry.indices.count / 3;
 
   const renderPass = makeRenderPass(gl, {
     defines: {
       OES_texture_float_linear,
       BVH_COLUMNS: textureDimensionsFromArray(flattenedBvh.count).columnsLog,
       INDEX_COLUMNS: textureDimensionsFromArray(numTris).columnsLog,
-      VERTEX_COLUMNS: textureDimensionsFromArray(geometry.attributes.position.count).columnsLog,
+      VERTEX_COLUMNS: textureDimensionsFromArray(geometry.position.count).columnsLog,
       STACK_SIZE: flattenedBvh.maxDepth,
       BOUNCES: bounces,
       USE_GLASS: materials.some(m => m.transparent),
@@ -152,11 +152,11 @@ function makeRenderPassFromScene({
   renderPass.setTexture('normalMap', materialBuffer.textures.normalMap);
   renderPass.setTexture('pbrMap', materialBuffer.textures.pbrMap);
 
-  renderPass.setTexture('positionBuffer', makeDataTexture(gl, geometry.getAttribute('position').array, 3));
+  renderPass.setTexture('positionBuffer', makeDataTexture(gl, geometry.position.array, 3));
 
-  renderPass.setTexture('normalBuffer', makeDataTexture(gl, geometry.getAttribute('normal').array, 3));
+  renderPass.setTexture('normalBuffer', makeDataTexture(gl, geometry.normal.array, 3));
 
-  renderPass.setTexture('uvBuffer', makeDataTexture(gl, geometry.getAttribute('uv').array, 2));
+  renderPass.setTexture('uvBuffer', makeDataTexture(gl, geometry.uv.array, 2));
 
   renderPass.setTexture('bvhBuffer', makeDataTexture(gl, flattenedBvh.buffer, 4));
 

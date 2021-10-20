@@ -1,26 +1,31 @@
-import * as constants from './constants';
-import { LensCamera } from './LensCamera';
-import { SoftDirectionalLight } from './SoftDirectionalLight';
-import { EnvironmentLight } from './EnvironmentLight';
-import { RayTracingMaterial } from './RayTracingMaterial';
+import { Camera } from './scene/Camera';
+import { DirectionalLight } from './scene/DirectionalLight';
+import { AmbientLight } from './scene/AmbientLight';
+import { EnvironmentLight } from './scene/EnvironmentLight';
+import { SceneNode } from './scene/SceneNode';
+import { Mesh } from './scene/Mesh';
+import { StandardMaterial } from './scene/StandardMaterial';
+import { Texture } from './scene/Texture';
+import { Geometry } from './scene/Geometry';
 import { RayTracingRenderer } from './RayTracingRenderer';
+import { loadRGBE, parseRGBE } from './util/loadRGBE';
 
-if (window.THREE) {
-  /* global THREE */
-  THREE.LensCamera = LensCamera;
-  THREE.SoftDirectionalLight = SoftDirectionalLight;
-  THREE.EnvironmentLight = EnvironmentLight;
-  THREE.RayTracingMaterial = RayTracingMaterial;
-  THREE.RayTracingRenderer = RayTracingRenderer;
-  THREE.ThickMaterial = constants.ThickMaterial;
-  THREE.ThinMaterial = constants.ThinMaterial;
-}
+export * from './constants';
 
 export {
-  constants,
-  LensCamera,
-  SoftDirectionalLight,
+  DirectionalLight,
   EnvironmentLight,
-  RayTracingMaterial,
-  RayTracingRenderer,
+  AmbientLight,
+
+  StandardMaterial,
+  Texture,
+  Geometry,
+  SceneNode,
+  Mesh,
+  Camera,
+
+  RayTracingRenderer as Renderer,
+
+  loadRGBE,
+  parseRGBE
 };

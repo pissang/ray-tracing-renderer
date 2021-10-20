@@ -1,6 +1,6 @@
 import fragment from './glsl/reproject.frag';
 import { makeRenderPass } from './RenderPass';
-import * as THREE from 'three';
+import {mat4} from 'gl-matrix';
 
 export function makeReprojectPass(gl, params) {
   const {
@@ -16,12 +16,9 @@ export function makeReprojectPass(gl, params) {
       fragment
     });
 
-  const historyCamera = new THREE.Matrix4();
-
-  function setPreviousCamera(camera) {
-    historyCamera.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-
-    renderPass.setUniform('historyCamera', historyCamera.elements);
+  function setPreviousCamera(previousCamera) {
+    const matrix = mat4.mul([], previousCamera.projectionMatrix, previousCamera.matrixWorldInverse);
+    renderPass.setUniform('historyCamera', matrix);
   }
 
   function setJitter(x, y) {

@@ -1,7 +1,7 @@
 import { makeRenderPass } from './RenderPass';
 import vertex from './glsl/gBuffer.vert';
 import fragment from './glsl/gBuffer.frag';
-import { Matrix4 } from 'three';
+import {mat4} from 'gl-matrix';
 
 export function makeGBufferPass(gl, { materialBuffer, mergedMesh }) {
   const renderPass = makeRenderPass(gl, {
@@ -37,16 +37,15 @@ export function makeGBufferPass(gl, { materialBuffer, mergedMesh }) {
   }
 
   function calcCamera() {
-    projView.copy(currentCamera.projectionMatrix);
+    const projView = currentCamera.projectionMatrix;
 
-    projView.elements[8] += 2 * jitterX;
-    projView.elements[9] += 2 * jitterY;
+    projView[8] += 2 * jitterX;
+    projView[9] += 2 * jitterY;
 
-    projView.multiply(currentCamera.matrixWorldInverse);
-    renderPass.setUniform('projView', projView.elements);
+    mat4.mul(projView, projView, currentCamera.matrixWorldInverse);
+
+    renderPass.setUniform('projView', projView);
   }
-
-  let projView = new Matrix4();
 
   function draw() {
     calcCamera();

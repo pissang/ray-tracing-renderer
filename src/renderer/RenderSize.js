@@ -1,5 +1,4 @@
 import { clamp } from './util';
-import { Vector2 } from 'three';
 
 export function makeRenderSize(gl) {
   const desiredMsPerFrame = 20;
@@ -9,7 +8,7 @@ export function makeRenderSize(gl) {
 
   let renderWidth;
   let renderHeight;
-  let scale = new Vector2(1, 1);
+  let scale = { x: 1, y: 1};
 
   let pixelsPerFrame = pixelsPerFrameEstimate(gl);
 
@@ -23,7 +22,8 @@ export function makeRenderSize(gl) {
     const aspectRatio = fullWidth / fullHeight;
     renderWidth = Math.round(clamp(Math.sqrt(pixelsPerFrame * aspectRatio), 1, fullWidth));
     renderHeight = Math.round(clamp(renderWidth / aspectRatio, 1, fullHeight));
-    scale.set(renderWidth / fullWidth, renderHeight / fullHeight);
+    scale.x = renderWidth / fullWidth
+    scale.y = renderHeight / fullHeight;
   }
 
   function adjustSize(elapsedFrameMs) {

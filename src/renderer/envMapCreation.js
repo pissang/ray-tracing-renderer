@@ -3,7 +3,7 @@
 
 import { rgbeToFloat } from './rgbeToFloat';
 import { clamp } from './util';
-import * as THREE from 'three';
+import {vec3} from 'gl-matrix';
 
 const DEFAULT_MAP_RESOLUTION = {
   width: 2048,
@@ -15,9 +15,10 @@ const DEFAULT_MAP_RESOLUTION = {
 export function generateBackgroundMapFromSceneBackground(background) {
   let backgroundImage;
 
-  if (background.isColor) {
+  // Is [r,g,b,a] color
+  if (Array.isArray(background)) {
     backgroundImage = generateSolidMap(1, 1, background);
-  } else if (background.encoding === THREE.RGBEEncoding) {
+  } else if (background.image && background.image.data) { // Is rgbe data
       backgroundImage = {
         width: background.image.width,
         height: background.image.height,
@@ -60,7 +61,7 @@ export function initializeEnvMap(environmentLights) {
 export function generateSolidMap(width, height, color, intensity) {
   const texels = width * height;
   const floatBuffer = new Float32Array(texels * 3);
-  if (color && color.isColor) {
+  if (color && Array.isArray(color)) {
     setBufferToColor(floatBuffer, color, intensity);
   }
   return {
@@ -74,13 +75,13 @@ function setBufferToColor(buffer, color, intensity = 1) {
   buffer.forEach(function(part, index) {
     const component = index % 3;
     if (component === 0) {
-      buffer[index] = color.r * intensity;
+      buffer[index] = color[0] * intensity;
     }
     else if (component === 1) {
-      buffer[index] = color.g * intensity;
+      buffer[index] = color[1] * intensity;
     }
     else if (component === 2) {
-      buffer[index] = color.b * intensity;
+      buffer[index] = color[2] * intensity;
     }
   });
   return buffer;
@@ -91,24 +92,25 @@ export function addAmbientLightToEnvMap(light, image) {
   image.data.forEach(function(part, index) {
     const component = index % 3;
     if (component === 0) {
-      image.data[index] += color.r * light.intensity;
+      image.data[index] += color[0] * light.intensity;
     }
     else if (component === 1) {
-      image.data[index] += color.g * light.intensity;
+      image.data[index] += color[1] * light.intensity;
     }
     else if (component === 2) {
-      image.data[index] += color.b * light.intensity;
+      image.data[index] += color[2] * light.intensity;
     }
   });
 }
 
 export function addDirectionalLightToEnvMap(light, image) {
-  const sphericalCoords = new THREE.Spherical();
-  const lightDirection = light.position.clone().sub(light.target.position);
+  const lightDirection = light.direction;
+  const sphericalCoords = eulerToSpherical(lightDirection[0], lightDirection[1], lightDirection[2]);
 
-  sphericalCoords.setFromVector3(lightDirection);
   sphericalCoords.theta = (Math.PI * 3 / 2) - sphericalCoords.theta;
-  sphericalCoords.makeSafe();
+  // make safe
+  var EPS = 0.000001;
+  sphericalCoords.phi = Math.max(EPS, Math.min(Math.PI - EPS, sphericalCoords.phi));
 
   return addLightAtCoordinates(light, image, sphericalCoords);
 }
@@ -134,11 +136,12 @@ function addLightAtCoordinates(light, image, originCoords) {
   const intensityFromAngleFunction = useThreshold ? getIntensityFromAngleDifferentialThresholded : getIntensityFromAngleDifferential;
 
   let begunAddingContributions = false;
-  let currentCoords = new THREE.Spherical();
+  let currentCoords = {
+    radius: 1
+  };
 
   // Iterates over each row from top to bottom
   for (let i = 0; i < xTexels; i++) {
-
     let encounteredInThisRow = false;
 
     // Iterates over each texel in row
@@ -154,9 +157,9 @@ function addLightAtCoordinates(light, image, originCoords) {
 
       const intensity = light.intensity * falloff;
 
-      floatBuffer[bufferIndex * 3] += intensity * light.color.r;
-      floatBuffer[bufferIndex * 3 + 1] += intensity * light.color.g;
-      floatBuffer[bufferIndex * 3 + 2] += intensity * light.color.b;
+      floatBuffer[bufferIndex * 3] += intensity * light.color[0];
+      floatBuffer[bufferIndex * 3 + 1] += intensity * light.color[1];
+      floatBuffer[bufferIndex * 3 + 2] += intensity * light.color[2];
     }
 
     // First row to not add a contribution since adding began
@@ -184,7 +187,7 @@ function findThreshold(softness) {
 
 function getIntensityFromAngleDifferentialThresholded(originCoords, currentCoords, softness, threshold) {
   const deltaPhi = getAngleDelta(originCoords.phi, currentCoords.phi);
-  const deltaTheta =  getAngleDelta(originCoords.theta, currentCoords.theta);
+  const deltaTheta = getAngleDelta(originCoords.theta, currentCoords.theta);
 
   if(deltaTheta > threshold && deltaPhi > threshold) {
     return 0;
@@ -205,13 +208,15 @@ export function getAngleDelta(angleA, angleB) {
 }
 
 const angleBetweenSphericals = function() {
-  const originVector = new THREE.Vector3();
-  const currentVector = new THREE.Vector3();
-
+  let originVector = [];
+  let currentVector = [];
   return (originCoords, currentCoords) => {
-    originVector.setFromSpherical(originCoords);
-    currentVector.setFromSpherical(currentCoords);
-    return originVector.angleTo(currentVector);
+    sphericalToEuler(originVector, originCoords.theta, originCoords.phi, originCoords.radius);
+    sphericalToEuler(currentVector, currentCoords.theta, currentCoords.phi, currentCoords.radius);
+
+    const theta = vec3.dot(currentVector, currentVector) / Math.sqrt(vec3.sqrLen(originVector) * vec3.sqrLen(currentVector));
+		// clamp, to handle numerical problems
+		return Math.acos(Math.min(Math.max(theta, -1), 1));
   };
 }();
 
@@ -233,4 +238,30 @@ export function equirectangularToSpherical(x, y, width, height, target) {
   target.phi = (Math.PI * y) / height;
   target.theta = (2.0 * Math.PI * x) / width;
   return target;
+}
+
+function eulerToSpherical(x, y, z) {
+
+  const radius = Math.sqrt(x * x + y * y + z * z);
+
+  if (radius === 0 ) {
+    return {
+      radius: 0,
+      theta: 0,
+      phi: 0
+    };
+  } else {
+    return {
+      theta: Math.atan2(x, z),
+      phi: Math.acos(Math.min(Math.max(y / radius, -1), 1)),
+      radius
+    };
+  }
+}
+
+function sphericalToEuler(out, theta, phi, radius) {
+  const sinPhiRadius = Math.sin(phi) * radius;
+  out[0] = sinPhiRadius * Math.sin(theta);
+  out[1] = Math.cos(phi) * radius;
+  out[2] = sinPhiRadius * Math.cos(theta);
 }
