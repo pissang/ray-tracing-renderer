@@ -1,7 +1,7 @@
 {
-  "name": "ray-tracing-renderer",
-  "version": "0.10.15",
-  "description": "A [Three.js](https://github.com/mrdoob/three.js/) renderer which utilizes path tracing to render a scene with true photorealism. The renderer supports global illumination, reflections, soft shadows, and realistic environment lighting.",
+  "name": "@lang/ray-tracing-renderer",
+  "version": "0.10.16",
+  "description": "A WebGL2.0 renderer which utilizes path tracing to render a scene with true photorealism. The renderer supports global illumination, reflections, soft shadows, and realistic environment lighting.",
   "main": "build/RayTracingRenderer.js",
   "scripts": {
     "build": "rollup -c",
@@ -28,20 +28,18 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hoverinc/ray-tracing-renderer.git"
+    "url": "git+https://github.com/pissang/ray-tracing-renderer.git"
   },
   "keywords": [
     "path-tracing",
     "ray-tracing",
     "global-illumination",
     "webgl2",
-    "bvh",
-    "three.js"
+    "bvh"
   ],
   "bugs": {
-    "url": "https://github.com/hoverinc/ray-tracing-renderer/issues"
+    "url": "https://github.com/pissang/ray-tracing-renderer/issues"
   },
-  "homepage": "https://hoverinc.github.io/ray-tracing-renderer/",
   "dependencies": {
     "gl-matrix": "^3.4.3"
   }

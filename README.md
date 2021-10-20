@@ -2,7 +2,7 @@
 
 
 # Ray Tracing Renderer
-A [Three.js](https://github.com/mrdoob/three.js/) renderer which utilizes path tracing to render a scene with true photorealism. The renderer supports global illumination, reflections, soft shadows, and realistic environment lighting.
+A WebGL2.0 renderer which utilizes path tracing to render a scene with true photorealism. The renderer supports global illumination, reflections, soft shadows, and realistic environment lighting.
 
 [Demo](https://hoverinc.github.io/ray-tracing-renderer/scenes/sample-models/) | [User Guide](https://github.com/hoverinc/ray-tracing-renderer/wiki/User-Guide) | [API Reference](https://github.com/hoverinc/ray-tracing-renderer/wiki/RayTracingRenderer) | [Contributing](https://github.com/hoverinc/ray-tracing-renderer#contributing)
 
@@ -12,8 +12,8 @@ A [Three.js](https://github.com/mrdoob/three.js/) renderer which utilizes path t
 RayTracingRenderer is the *early alpha stage* of development. Features are incomplete and subject to change, and the renderer is unstable on certain hardware.
 ### Download
 
-* [Latest ES6 Build](https://raw.githubusercontent.com/hoverinc/ray-tracing-renderer/master/build/RayTracingRenderer.js)
-* [Latest ES5 Build](https://raw.githubusercontent.com/hoverinc/ray-tracing-renderer/master/build/RayTracingRenderer.es5.js)
+* [Latest ES6 Build](https://raw.githubusercontent.com/pissang/ray-tracing-renderer/master/build/RayTracingRenderer.js)
+* [Latest ES5 Build](https://raw.githubusercontent.com/pissang/ray-tracing-renderer/master/build/RayTracingRenderer.es5.js)
 
 Or if you use npm, run
 `npm install ray-tracing-renderer`

@@ -1,69 +1,792 @@
 (function (global, factory) {
-  typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('three')) :
-  typeof define === 'function' && define.amd ? define(['exports', 'three'], factory) :
-  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.RayTracingRenderer = {}, global.THREE));
-}(this, (function (exports, THREE$1) { 'use strict';
+  typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
+  typeof define === 'function' && define.amd ? define(['exports'], factory) :
+  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.RayTracingRenderer = {}));
+}(this, (function (exports) { 'use strict';
 
-  const ThinMaterial = 1;
-  const ThickMaterial = 2;
-  const ShadowCatcherMaterial = 3;
+  /**
+   * Common utilities
+   * @module glMatrix
+   */
+  var ARRAY_TYPE = typeof Float32Array !== 'undefined' ? Float32Array : Array;
+  if (!Math.hypot) Math.hypot = function () {
+    var y = 0,
+        i = arguments.length;
 
-  var constants = /*#__PURE__*/Object.freeze({
-    __proto__: null,
-    ThinMaterial: ThinMaterial,
-    ThickMaterial: ThickMaterial,
-    ShadowCatcherMaterial: ShadowCatcherMaterial
-  });
+    while (i--) {
+      y += arguments[i] * arguments[i];
+    }
 
-  class LensCamera extends THREE$1.PerspectiveCamera {
-    constructor(...args) {
-      super(...args);
+    return Math.sqrt(y);
+  };
+
+  /**
+   * 4x4 Matrix<br>Format: column-major, when typed out it looks like row-major<br>The matrices are being post multiplied.
+   * @module mat4
+   */
+
+  /**
+   * Creates a new identity mat4
+   *
+   * @returns {mat4} a new 4x4 matrix
+   */
+
+  function create() {
+    var out = new ARRAY_TYPE(16);
+
+    if (ARRAY_TYPE != Float32Array) {
+      out[1] = 0;
+      out[2] = 0;
+      out[3] = 0;
+      out[4] = 0;
+      out[6] = 0;
+      out[7] = 0;
+      out[8] = 0;
+      out[9] = 0;
+      out[11] = 0;
+      out[12] = 0;
+      out[13] = 0;
+      out[14] = 0;
+    }
+
+    out[0] = 1;
+    out[5] = 1;
+    out[10] = 1;
+    out[15] = 1;
+    return out;
+  }
+  /**
+   * Copy the values from one mat4 to another
+   *
+   * @param {mat4} out the receiving matrix
+   * @param {ReadonlyMat4} a the source matrix
+   * @returns {mat4} out
+   */
+
+  function copy(out, a) {
+    out[0] = a[0];
+    out[1] = a[1];
+    out[2] = a[2];
+    out[3] = a[3];
+    out[4] = a[4];
+    out[5] = a[5];
+    out[6] = a[6];
+    out[7] = a[7];
+    out[8] = a[8];
+    out[9] = a[9];
+    out[10] = a[10];
+    out[11] = a[11];
+    out[12] = a[12];
+    out[13] = a[13];
+    out[14] = a[14];
+    out[15] = a[15];
+    return out;
+  }
+  /**
+   * Transpose the values of a mat4
+   *
+   * @param {mat4} out the receiving matrix
+   * @param {ReadonlyMat4} a the source matrix
+   * @returns {mat4} out
+   */
+
+  function transpose(out, a) {
+    // If we are transposing ourselves we can skip a few steps but have to cache some values
+    if (out === a) {
+      var a01 = a[1],
+          a02 = a[2],
+          a03 = a[3];
+      var a12 = a[6],
+          a13 = a[7];
+      var a23 = a[11];
+      out[1] = a[4];
+      out[2] = a[8];
+      out[3] = a[12];
+      out[4] = a01;
+      out[6] = a[9];
+      out[7] = a[13];
+      out[8] = a02;
+      out[9] = a12;
+      out[11] = a[14];
+      out[12] = a03;
+      out[13] = a13;
+      out[14] = a23;
+    } else {
+      out[0] = a[0];
+      out[1] = a[4];
+      out[2] = a[8];
+      out[3] = a[12];
+      out[4] = a[1];
+      out[5] = a[5];
+      out[6] = a[9];
+      out[7] = a[13];
+      out[8] = a[2];
+      out[9] = a[6];
+      out[10] = a[10];
+      out[11] = a[14];
+      out[12] = a[3];
+      out[13] = a[7];
+      out[14] = a[11];
+      out[15] = a[15];
+    }
+
+    return out;
+  }
+  /**
+   * Inverts a mat4
+   *
+   * @param {mat4} out the receiving matrix
+   * @param {ReadonlyMat4} a the source matrix
+   * @returns {mat4} out
+   */
+
+  function invert(out, a) {
+    var a00 = a[0],
+        a01 = a[1],
+        a02 = a[2],
+        a03 = a[3];
+    var a10 = a[4],
+        a11 = a[5],
+        a12 = a[6],
+        a13 = a[7];
+    var a20 = a[8],
+        a21 = a[9],
+        a22 = a[10],
+        a23 = a[11];
+    var a30 = a[12],
+        a31 = a[13],
+        a32 = a[14],
+        a33 = a[15];
+    var b00 = a00 * a11 - a01 * a10;
+    var b01 = a00 * a12 - a02 * a10;
+    var b02 = a00 * a13 - a03 * a10;
+    var b03 = a01 * a12 - a02 * a11;
+    var b04 = a01 * a13 - a03 * a11;
+    var b05 = a02 * a13 - a03 * a12;
+    var b06 = a20 * a31 - a21 * a30;
+    var b07 = a20 * a32 - a22 * a30;
+    var b08 = a20 * a33 - a23 * a30;
+    var b09 = a21 * a32 - a22 * a31;
+    var b10 = a21 * a33 - a23 * a31;
+    var b11 = a22 * a33 - a23 * a32; // Calculate the determinant
+
+    var det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+
+    if (!det) {
+      return null;
+    }
+
+    det = 1.0 / det;
+    out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
+    out[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
+    out[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
+    out[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det;
+    out[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
+    out[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
+    out[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
+    out[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det;
+    out[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
+    out[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
+    out[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
+    out[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det;
+    out[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det;
+    out[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
+    out[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
+    out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
+    return out;
+  }
+  /**
+   * Multiplies two mat4s
+   *
+   * @param {mat4} out the receiving matrix
+   * @param {ReadonlyMat4} a the first operand
+   * @param {ReadonlyMat4} b the second operand
+   * @returns {mat4} out
+   */
+
+  function multiply(out, a, b) {
+    var a00 = a[0],
+        a01 = a[1],
+        a02 = a[2],
+        a03 = a[3];
+    var a10 = a[4],
+        a11 = a[5],
+        a12 = a[6],
+        a13 = a[7];
+    var a20 = a[8],
+        a21 = a[9],
+        a22 = a[10],
+        a23 = a[11];
+    var a30 = a[12],
+        a31 = a[13],
+        a32 = a[14],
+        a33 = a[15]; // Cache only the current line of the second matrix
+
+    var b0 = b[0],
+        b1 = b[1],
+        b2 = b[2],
+        b3 = b[3];
+    out[0] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+    out[1] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+    out[2] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+    out[3] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+    b0 = b[4];
+    b1 = b[5];
+    b2 = b[6];
+    b3 = b[7];
+    out[4] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+    out[5] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+    out[6] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+    out[7] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+    b0 = b[8];
+    b1 = b[9];
+    b2 = b[10];
+    b3 = b[11];
+    out[8] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+    out[9] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+    out[10] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+    out[11] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+    b0 = b[12];
+    b1 = b[13];
+    b2 = b[14];
+    b3 = b[15];
+    out[12] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+    out[13] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+    out[14] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+    out[15] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+    return out;
+  }
+  /**
+   * Creates a matrix from a vector translation
+   * This is equivalent to (but much faster than):
+   *
+   *     mat4.identity(dest);
+   *     mat4.translate(dest, dest, vec);
+   *
+   * @param {mat4} out mat4 receiving operation result
+   * @param {ReadonlyVec3} v Translation vector
+   * @returns {mat4} out
+   */
+
+  function fromTranslation(out, v) {
+    out[0] = 1;
+    out[1] = 0;
+    out[2] = 0;
+    out[3] = 0;
+    out[4] = 0;
+    out[5] = 1;
+    out[6] = 0;
+    out[7] = 0;
+    out[8] = 0;
+    out[9] = 0;
+    out[10] = 1;
+    out[11] = 0;
+    out[12] = v[0];
+    out[13] = v[1];
+    out[14] = v[2];
+    out[15] = 1;
+    return out;
+  }
+  /**
+   * Generates a perspective projection matrix with the given bounds.
+   * The near/far clip planes correspond to a normalized device coordinate Z range of [-1, 1],
+   * which matches WebGL/OpenGL's clip volume.
+   * Passing null/undefined/no value for far will generate infinite projection matrix.
+   *
+   * @param {mat4} out mat4 frustum matrix will be written into
+   * @param {number} fovy Vertical field of view in radians
+   * @param {number} aspect Aspect ratio. typically viewport width/height
+   * @param {number} near Near bound of the frustum
+   * @param {number} far Far bound of the frustum, can be null or Infinity
+   * @returns {mat4} out
+   */
+
+  function perspectiveNO(out, fovy, aspect, near, far) {
+    var f = 1.0 / Math.tan(fovy / 2),
+        nf;
+    out[0] = f / aspect;
+    out[1] = 0;
+    out[2] = 0;
+    out[3] = 0;
+    out[4] = 0;
+    out[5] = f;
+    out[6] = 0;
+    out[7] = 0;
+    out[8] = 0;
+    out[9] = 0;
+    out[11] = -1;
+    out[12] = 0;
+    out[13] = 0;
+    out[15] = 0;
+
+    if (far != null && far !== Infinity) {
+      nf = 1 / (near - far);
+      out[10] = (far + near) * nf;
+      out[14] = 2 * far * near * nf;
+    } else {
+      out[10] = -1;
+      out[14] = -2 * near;
+    }
+
+    return out;
+  }
+  /**
+   * Alias for {@link mat4.perspectiveNO}
+   * @function
+   */
+
+  var perspective = perspectiveNO;
+  /**
+   * Alias for {@link mat4.multiply}
+   * @function
+   */
+
+  var mul = multiply;
+
+  /**
+   * 3 Dimensional Vector
+   * @module vec3
+   */
+
+  /**
+   * Creates a new, empty vec3
+   *
+   * @returns {vec3} a new 3D vector
+   */
+
+  function create$1() {
+    var out = new ARRAY_TYPE(3);
+
+    if (ARRAY_TYPE != Float32Array) {
+      out[0] = 0;
+      out[1] = 0;
+      out[2] = 0;
+    }
+
+    return out;
+  }
+  /**
+   * Set the components of a vec3 to the given values
+   *
+   * @param {vec3} out the receiving vector
+   * @param {Number} x X component
+   * @param {Number} y Y component
+   * @param {Number} z Z component
+   * @returns {vec3} out
+   */
+
+  function set(out, x, y, z) {
+    out[0] = x;
+    out[1] = y;
+    out[2] = z;
+    return out;
+  }
+  /**
+   * Subtracts vector b from vector a
+   *
+   * @param {vec3} out the receiving vector
+   * @param {ReadonlyVec3} a the first operand
+   * @param {ReadonlyVec3} b the second operand
+   * @returns {vec3} out
+   */
+
+  function subtract(out, a, b) {
+    out[0] = a[0] - b[0];
+    out[1] = a[1] - b[1];
+    out[2] = a[2] - b[2];
+    return out;
+  }
+  /**
+   * Returns the minimum of two vec3's
+   *
+   * @param {vec3} out the receiving vector
+   * @param {ReadonlyVec3} a the first operand
+   * @param {ReadonlyVec3} b the second operand
+   * @returns {vec3} out
+   */
+
+  function min(out, a, b) {
+    out[0] = Math.min(a[0], b[0]);
+    out[1] = Math.min(a[1], b[1]);
+    out[2] = Math.min(a[2], b[2]);
+    return out;
+  }
+  /**
+   * Returns the maximum of two vec3's
+   *
+   * @param {vec3} out the receiving vector
+   * @param {ReadonlyVec3} a the first operand
+   * @param {ReadonlyVec3} b the second operand
+   * @returns {vec3} out
+   */
+
+  function max(out, a, b) {
+    out[0] = Math.max(a[0], b[0]);
+    out[1] = Math.max(a[1], b[1]);
+    out[2] = Math.max(a[2], b[2]);
+    return out;
+  }
+  /**
+   * Calculates the squared length of a vec3
+   *
+   * @param {ReadonlyVec3} a vector to calculate squared length of
+   * @returns {Number} squared length of a
+   */
+
+  function squaredLength(a) {
+    var x = a[0];
+    var y = a[1];
+    var z = a[2];
+    return x * x + y * y + z * z;
+  }
+  /**
+   * Normalize a vec3
+   *
+   * @param {vec3} out the receiving vector
+   * @param {ReadonlyVec3} a vector to normalize
+   * @returns {vec3} out
+   */
+
+  function normalize(out, a) {
+    var x = a[0];
+    var y = a[1];
+    var z = a[2];
+    var len = x * x + y * y + z * z;
+
+    if (len > 0) {
+      //TODO: evaluate use of glm_invsqrt here?
+      len = 1 / Math.sqrt(len);
+    }
+
+    out[0] = a[0] * len;
+    out[1] = a[1] * len;
+    out[2] = a[2] * len;
+    return out;
+  }
+  /**
+   * Calculates the dot product of two vec3's
+   *
+   * @param {ReadonlyVec3} a the first operand
+   * @param {ReadonlyVec3} b the second operand
+   * @returns {Number} dot product of a and b
+   */
+
+  function dot(a, b) {
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  }
+  /**
+   * Computes the cross product of two vec3's
+   *
+   * @param {vec3} out the receiving vector
+   * @param {ReadonlyVec3} a the first operand
+   * @param {ReadonlyVec3} b the second operand
+   * @returns {vec3} out
+   */
+
+  function cross(out, a, b) {
+    var ax = a[0],
+        ay = a[1],
+        az = a[2];
+    var bx = b[0],
+        by = b[1],
+        bz = b[2];
+    out[0] = ay * bz - az * by;
+    out[1] = az * bx - ax * bz;
+    out[2] = ax * by - ay * bx;
+    return out;
+  }
+  /**
+   * Transforms the vec3 with a mat4.
+   * 4th vector component is implicitly '1'
+   *
+   * @param {vec3} out the receiving vector
+   * @param {ReadonlyVec3} a the vector to transform
+   * @param {ReadonlyMat4} m matrix to transform with
+   * @returns {vec3} out
+   */
+
+  function transformMat4(out, a, m) {
+    var x = a[0],
+        y = a[1],
+        z = a[2];
+    var w = m[3] * x + m[7] * y + m[11] * z + m[15];
+    w = w || 1.0;
+    out[0] = (m[0] * x + m[4] * y + m[8] * z + m[12]) / w;
+    out[1] = (m[1] * x + m[5] * y + m[9] * z + m[13]) / w;
+    out[2] = (m[2] * x + m[6] * y + m[10] * z + m[14]) / w;
+    return out;
+  }
+  /**
+   * Alias for {@link vec3.subtract}
+   * @function
+   */
+
+  var sub = subtract;
+  /**
+   * Alias for {@link vec3.squaredLength}
+   * @function
+   */
+
+  var sqrLen = squaredLength;
+  /**
+   * Perform some operation over an array of vec3s.
+   *
+   * @param {Array} a the array of vectors to iterate over
+   * @param {Number} stride Number of elements between the start of each vec3. If 0 assumes tightly packed
+   * @param {Number} offset Number of elements to skip at the beginning of the array
+   * @param {Number} count Number of vec3s to iterate over. If 0 iterates over entire array
+   * @param {Function} fn Function to call for each vector in the array
+   * @param {Object} [arg] additional argument to pass to fn
+   * @returns {Array} a
+   * @function
+   */
+
+  var forEach = function () {
+    var vec = create$1();
+    return function (a, stride, offset, count, fn, arg) {
+      var i, l;
+
+      if (!stride) {
+        stride = 3;
+      }
+
+      if (!offset) {
+        offset = 0;
+      }
+
+      if (count) {
+        l = Math.min(count * stride + offset, a.length);
+      } else {
+        l = a.length;
+      }
+
+      for (i = offset; i < l; i += stride) {
+        vec[0] = a[i];
+        vec[1] = a[i + 1];
+        vec[2] = a[i + 2];
+        fn(vec, vec, arg);
+        a[i] = vec[0];
+        a[i + 1] = vec[1];
+        a[i + 2] = vec[2];
+      }
+
+      return a;
+    };
+  }();
+
+  class SceneNode {
+    constructor() {
+      /**
+       * @property {Float32Array} matrixWorld World transform matrix..
+       */
+      this.matrixWorld = create();
+    }
+
+    get matrixWorldInverse() {
+      return invert([], this.matrixWorld);
+    }
+  }
+
+  class Camera extends SceneNode {
+
+    constructor(fov, aspect, near, far) {
+      super();
+
+      this.fov = fov != null ? fov : 50;
+      this.near = near != null ? near : 0.1;
+      this.far = far != null ? far : 2000;
+      this.aspect = aspect != null ? aspect : 1;
+
+      this.zoom = 1;
+      this.focus = 10;
+
       this.aperture = 0.01;
     }
 
-    copy(source, recursive) {
-      super.copy(source, recursive);
+    get projectionMatrix() {
+      return perspective([], this.fov * Math.PI / 180, this.aspect, this.near, this.far);
+    }
+
+    copy(source) {
+      this.fov = source.fov;
+      this.near = source.near;
+      this.far = source.far;
+      this.aspect = source.aspect;
+      this.zoom = source.zoom;
+      this.focus = source.focus;
       this.aperture = source.aperture;
+
+      copy(this.matrixWorld, source.matrixWorld);
     }
   }
 
-  class SoftDirectionalLight extends THREE$1.DirectionalLight {
-    constructor(color, intensity, softness = 0) {
-      super(color, intensity);
-      this.softness = softness;
-    }
-
-    copy(source) {
-      super.copy(source);
-      this.softness = source.softness;
+  class DirectionalLight {
+    constructor(direction, color, intensity, softness) {
+      this.direction = direction || [1, 1, 1];
+      this.color = color || [1, 1, 1];
+      this.intensity = intensity == null ? 1 : intensity;
+      this.softness = softness || 0;
     }
   }
 
-  class EnvironmentLight extends THREE$1.Light {
-    constructor(map, ...args) {
-      super(...args);
+  class AmbientLight {
+    constructor(color, intensity) {
+      /**
+       * @property {number[]}
+       */
+      this.color = color || [1, 1, 1];
+
+      this.intensity = intensity == null ? 1 : intensity;
+    }
+  }
+
+  class EnvironmentLight {
+    constructor(map, intensity) {
+      /**
+       * @property {import('./Texture').Texture}
+       */
       this.map = map;
-      this.isEnvironmentLight = true;
-    }
 
-    copy(source) {
-      super.copy(source);
-      this.map = source.map;
+      this.intensity = intensity == null ? 1 : intensity;
     }
   }
 
-  class RayTracingMaterial extends THREE$1.MeshStandardMaterial {
-    constructor(...args) {
-      super(...args);
-      this.solid = false;
-      this.shadowCatcher = false;
+  class Mesh extends SceneNode {
+
+    constructor(geometry, material) {
+      super();
+
+      /**
+       * @property {import('./Geometry').Geometry}
+       */
+      this.geometry = geometry;
+      /**
+       * @property {import('./StandardMaterial').StandardMaterial}
+       */
+      this.material = material;
+    }
+  }
+
+  class StandardMaterial {
+
+    constructor() {
+      /**
+       * @property {number[]}
+       */
+      this.color = null;
+      /**
+       * @property {number}
+       */
+      this.roughness = null;
+      /**
+       * @property {number}
+       */
+      this.metalness = null;
+
+      /**
+       * @property {import('./Texture').Texture}
+       */
+      this.map = null;
+
+      /**
+       * @property {number[]}
+       */
+      this.emissive = null;
+
+      /**
+       * @property {number}
+       */
+      this.emissiveIntensity = null;
+      /**
+       * @property {import('./Texture').Texture}
+       */
+      this.emissiveMap = null;
+
+      /**
+       * @property {import('./Texture').Texture}
+       */
+      this.normalMap = null;
+
+      /**
+       * @property {number[]}
+       */
+      this.normalScale = null;
+
+      /**
+       * @property {import('./Texture').Texture}
+       */
+      this.roughnessMap = null;
+      /**
+       * @property {import('./Texture').Texture}
+       */
+      this.metalnessMap = null;
+
+      /**
+       * @property {boolean}
+       */
+      this.transparent = false;
+
+      this.solid = true;
+      this.shadowCaster = true;
+    }
+  }
+
+  class Texture {
+
+    constructor(image) {
+      this.image = image;
+
+      this.flipY = false;
+    }
+  }
+
+  class Attribute {
+    constructor(array, itemSize) {
+      this.array = array;
+      this.itemSize = itemSize;
     }
 
-    copy(source) {
-      super.copy(source);
-      this.solid = source.solid;
-      this.shadowCatcher = source.shadowCatcher;
+    getItem(out, vertexIndex) {
+      const array = this.array;
+      const itemSize = this.itemSize;
+      const offset = vertexIndex * itemSize;
+      for (let i = 0; i < itemSize; i++) {
+        out[i] = array[offset + i];
+      }
     }
+
+    get count() {
+      return this.array.length / this.itemSize;
+    }
+  }
+
+  class Geometry {
+    constructor(data) {
+      data = data || {};
+
+      /**
+       * @property {Attribute} position Position of geometry
+       */
+      this.position = data.position;
+      /**
+       * @property {Attribute} normal Normal of geometry
+       */
+      this.normal = data.normal;
+      /**
+       * @property {Attribute} uv Uv of geometry
+       */
+      this.uv = data.uv;
+      /**
+       * @property {Attribute} position Indices of geometry
+       */
+      this.indices = data.indices;
+
+      /**
+       * @property {Attribute} materialMeshIndex Material index of merged geometry.
+       */
+      this.materialMeshIndex;
+    }
+
   }
 
   function loadExtensions(gl, extensions) {
@@ -142,55 +865,6 @@
     }
 
     return attributes;
-  }
-
-  function decomposeScene(scene) {
-    const meshes = [];
-    const directionalLights = [];
-    const ambientLights = [];
-    const environmentLights = [];
-
-    scene.traverse(child => {
-      if (child.isMesh) {
-        if (!child.geometry) {
-          console.warn(child, 'must have a geometry property');
-        }
-        else if (!(child.material.isMeshStandardMaterial)) {
-          console.warn(child, 'must use MeshStandardMaterial in order to be rendered.');
-        } else {
-          meshes.push(child);
-        }
-      }
-      else if (child.isDirectionalLight) {
-        directionalLights.push(child);
-      }
-      else if (child.isAmbientLight) {
-        ambientLights.push(child);
-      }
-      else if (child.isEnvironmentLight) {
-        if (environmentLights.length > 1) {
-          console.warn(environmentLights, 'only one environment light can be used per scene');
-        }
-        // Valid lights have HDR texture map in RGBEEncoding
-        if (isHDRTexture(child)) {
-          environmentLights.push(child);
-        } else {
-          console.warn(child, 'environment light does not use color value or map with THREE.RGBEEncoding');
-        }
-      }
-    });
-
-    const background = scene.background;
-
-    return {
-      background, meshes, directionalLights, ambientLights, environmentLights
-    };
-  }
-
-  function isHDRTexture(texture) {
-    return texture.map
-      && texture.map.image
-      && (texture.map.encoding === THREE$1.RGBEEncoding || texture.map.encoding === THREE$1.LinearEncoding);
   }
 
   function makeFramebuffer(gl, { color, depth }) {
@@ -570,7 +1244,7 @@
 `
   };
 
-  var constants$1 = `
+  var constants = `
   #define PI 3.14159265359
   #define TWOPI 6.28318530718
   #define INVPI 0.31830988618
@@ -686,7 +1360,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
 
   outputs: ['position', 'normal', 'faceNormal', 'color', 'matProps'],
   includes: [
-    constants$1,
+    constants,
     materialBuffer,
   ],
   source: `
@@ -750,7 +1424,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
 
     const geometry = mergedMesh.geometry;
 
-    const elementCount = geometry.getIndex().count;
+    const elementCount = geometry.indices.count;
 
     const vao = gl.createVertexArray();
 
@@ -771,16 +1445,15 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     }
 
     function calcCamera() {
-      projView.copy(currentCamera.projectionMatrix);
+      const projView = currentCamera.projectionMatrix;
 
-      projView.elements[8] += 2 * jitterX;
-      projView.elements[9] += 2 * jitterY;
+      projView[8] += 2 * jitterX;
+      projView[9] += 2 * jitterY;
 
-      projView.multiply(currentCamera.matrixWorldInverse);
-      renderPass.setUniform('projView', projView.elements);
+      mul(projView, projView, currentCamera.matrixWorldInverse);
+
+      renderPass.setUniform('projView', projView);
     }
-
-    let projView = new THREE$1.Matrix4();
 
     function draw() {
       calcCamera();
@@ -800,13 +1473,13 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
   }
 
   function uploadAttributes(gl, renderPass, geometry) {
-    setAttribute(gl, renderPass.attribLocs.aPosition, geometry.getAttribute('position'));
-    setAttribute(gl, renderPass.attribLocs.aNormal, geometry.getAttribute('normal'));
-    setAttribute(gl, renderPass.attribLocs.aUv, geometry.getAttribute('uv'));
-    setAttribute(gl, renderPass.attribLocs.aMaterialMeshIndex, geometry.getAttribute('materialMeshIndex'));
+    setAttribute(gl, renderPass.attribLocs.aPosition, geometry.position);
+    setAttribute(gl, renderPass.attribLocs.aNormal, geometry.normal);
+    setAttribute(gl, renderPass.attribLocs.aUv, geometry.uv);
+    setAttribute(gl, renderPass.attribLocs.aMaterialMeshIndex, geometry.materialMeshIndex);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, geometry.getIndex().array, gl.STATIC_DRAW);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, geometry.indices.array, gl.STATIC_DRAW);
   }
 
   function setAttribute(gl, location, bufferAttribute) {
@@ -828,6 +1501,16 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
       throw 'Unsupported buffer type';
     }
   }
+
+  const ThinMaterial = 1;
+  const ThickMaterial = 2;
+  const ShadowCatcherMaterial = 3;
+
+  const LinearToneMapping = 4;
+  const ReinhardToneMapping = 5;
+  const Uncharted2ToneMapping = 6;
+  const CineonToneMapping = 7;
+  const ACESFilmicToneMapping = 8;
 
   function makeUniformBuffer(gl, program, blockName) {
     const blockIndex = gl.getUniformBlockIndex(program, blockName);
@@ -1305,14 +1988,14 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     const materialBuffer = makeUniformBuffer(gl, program, 'Materials');
 
     materialBuffer.set('Materials.colorAndMaterialType[0]', interleave(
-      { data: [].concat(...bufferData.color.map(d => d.toArray())), channels: 3 },
+      { data: [].concat(...bufferData.color), channels: 3 },
       { data: bufferData.type, channels: 1}
     ));
 
     materialBuffer.set('Materials.roughnessMetalnessNormalScale[0]', interleave(
       { data: bufferData.roughness, channels: 1 },
       { data: bufferData.metalness, channels: 1 },
-      { data: [].concat(...bufferData.normalScale.map(d => d.toArray())), channels: 2 }
+      { data: [].concat(...bufferData.normalScale), channels: 2 }
     ));
 
     materialBuffer.set('Materials.diffuseNormalRoughnessMetalnessMapIndex[0]', interleave(
@@ -1362,29 +2045,24 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     const materialIndexMap = new Map();
 
     for (const mesh of meshes) {
-      if (!mesh.visible) {
-        continue;
-      }
+      let geometry = mesh.geometry;
 
-      const geometry = mesh.geometry.isBufferGeometry ?
-        cloneBufferGeometry(mesh.geometry, ['position', 'normal', 'uv']) : // BufferGeometry object
-        new THREE$1.BufferGeometry().fromGeometry(mesh.geometry); // Geometry object
-
-      const index = geometry.getIndex();
+      const index = geometry.indices;
       if (!index) {
         addFlatGeometryIndices(geometry);
       }
 
-      geometry.applyMatrix(mesh.matrixWorld);
+      geometry = transformGeometry(geometry, mesh.matrixWorld);
 
-      if (!geometry.getAttribute('normal')) {
-        geometry.computeVertexNormals();
-      } else {
-        geometry.normalizeNormals();
+      if (!geometry.normal) {
+        computeGeometryNormals(geometry);
+      }
+      else {
+        forEach(geometry.normal.array, 3, 0, undefined, normalize);
       }
 
-      vertexCount += geometry.getAttribute('position').count;
-      indexCount += geometry.getIndex().count;
+      vertexCount += geometry.position.count;
+      indexCount += geometry.indices.count;
 
       const material = mesh.material;
       let materialIndex = materialIndexMap.get(material);
@@ -1408,66 +2086,52 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
   }
 
   function mergeGeometry(geometryAndMaterialIndex, vertexCount, indexCount) {
-    const positionAttrib = new THREE$1.BufferAttribute(new Float32Array(3 * vertexCount), 3, false);
-    const normalAttrib = new THREE$1.BufferAttribute(new Float32Array(3 * vertexCount), 3, false);
-    const uvAttrib = new THREE$1.BufferAttribute(new Float32Array(2 * vertexCount), 2, false);
-    const materialMeshIndexAttrib = new THREE$1.BufferAttribute(new Int32Array(2 * vertexCount), 2, false);
-    const indexAttrib = new THREE$1.BufferAttribute(new Uint32Array(indexCount), 1, false);
+    const positionAttrib = new Attribute(new Float32Array(3 * vertexCount), 3);
+    const normalAttrib = new Attribute(new Float32Array(3 * vertexCount), 3);
+    const uvAttrib = new Attribute(new Float32Array(2 * vertexCount), 2);
+    const indexAttrib = new Attribute(new Uint32Array(indexCount), 1);
 
-    const mergedGeometry = new THREE$1.BufferGeometry();
-    mergedGeometry.addAttribute('position', positionAttrib);
-    mergedGeometry.addAttribute('normal', normalAttrib);
-    mergedGeometry.addAttribute('uv', uvAttrib);
-    mergedGeometry.addAttribute('materialMeshIndex', materialMeshIndexAttrib);
-    mergedGeometry.setIndex(indexAttrib);
+    const materialMeshIndexAttrib = new Attribute(new Int32Array(2 * vertexCount), 2);
+
+    const mergedGeometry = new Geometry({
+      position: positionAttrib,
+      normal: normalAttrib,
+      uv: uvAttrib,
+      indices: indexAttrib
+    });
+    mergedGeometry.materialMeshIndex = materialMeshIndexAttrib;
 
     let currentVertex = 0;
     let currentIndex = 0;
     let currentMesh = 1;
 
     for (const { geometry, materialIndex } of geometryAndMaterialIndex) {
-      const vertexCount = geometry.getAttribute('position').count;
-      mergedGeometry.merge(geometry, currentVertex);
+      const vertexCount = geometry.position.count;
 
-      const meshIndex = geometry.getIndex();
-      for (let i = 0; i < meshIndex.count; i++) {
-        indexAttrib.setX(currentIndex + i, currentVertex + meshIndex.getX(i));
+      ['position', 'normal', 'uv'].forEach(function (attr) {
+        mergedGeometry[attr].array.set(geometry[attr].array, currentVertex * geometry[attr].itemSize);
+      });
+
+      const meshIndices = geometry.indices.array;
+      for (let i = 0; i < meshIndices.length; i++) {
+        indexAttrib.array[currentIndex + i] = currentVertex + meshIndices[i];
       }
 
-      for (let i = 0; i < vertexCount; i++) {
-        materialMeshIndexAttrib.setXY(currentVertex + i, materialIndex, currentMesh);
+      for (let i = 0; i < vertexCount * 2;) {
+        materialMeshIndexAttrib.array[currentVertex * 2 + i++] = materialIndex;
+        materialMeshIndexAttrib.array[currentVertex * 2 + i++] = currentMesh;
       }
 
       currentVertex += vertexCount;
-      currentIndex += meshIndex.count;
+      currentIndex += meshIndices.length;
       currentMesh++;
     }
 
     return mergedGeometry;
   }
 
-  // Similar to buffergeometry.clone(), except we only copy
-  // specific attributes instead of everything
-  function cloneBufferGeometry(bufferGeometry, attributes) {
-    const newGeometry = new THREE$1.BufferGeometry();
-
-    for (const name of attributes) {
-      const attrib = bufferGeometry.getAttribute(name);
-      if (attrib) {
-        newGeometry.addAttribute(name, attrib.clone());
-      }
-    }
-
-    const index = bufferGeometry.getIndex();
-    if (index) {
-      newGeometry.setIndex(index);
-    }
-
-    return newGeometry;
-  }
-
   function addFlatGeometryIndices(geometry) {
-    const position = geometry.getAttribute('position');
+    const position = geometry.position;
 
     if (!position) {
       console.warn('No position attribute');
@@ -1480,9 +2144,83 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
       index[i] = i;
     }
 
-    geometry.setIndex(new THREE$1.BufferAttribute(index, 1, false));
+    geometry.indices = new Attribute(index, 1, false);
 
     return geometry;
+  }
+
+  function transformGeometry(geometry, matrix) {
+    const newGeometry = new Geometry({
+      position: new Attribute(geometry.position.array.slice(), geometry.position.itemSize),
+      normal: geometry.normal && new Attribute(geometry.normal.array.slice(), geometry.normal.itemSize),
+      // No need to clone uv
+      uv: geometry.uv && new Attribute(geometry.uv.array, geometry.uv.itemSize),
+      indices: geometry.indices && new Attribute(geometry.indices.array, geometry.indices.itemSize),
+    });
+
+    // Normal Matrix
+    const inverseTransposeMatrix = create();
+    invert(inverseTransposeMatrix, matrix);
+    transpose(inverseTransposeMatrix, inverseTransposeMatrix);
+
+    forEach(newGeometry.position.array, 3, 0, null, transformMat4, matrix);
+    if (newGeometry.normal) {
+        forEach(newGeometry.normal.array, 3, 0, null, transformMat4, inverseTransposeMatrix);
+    }
+    return newGeometry;
+  }
+
+  function computeGeometryNormals(geometry) {
+    const indices = geometry.indices;
+    const positions = geometry.position.array;
+    geometry.normal = new Attribute(new Float32Array(positions.length), 3);
+    const normals = geometry.normal.array;
+
+    const p1 = create$1();
+    const p2 = create$1();
+    const p3 = create$1();
+
+    const v21 = create$1();
+    const v32 = create$1();
+
+    const n = create$1();
+
+    const len = indices ? indices.length : this.vertexCount;
+    let i1, i2, i3;
+    for (let f = 0; f < len;) {
+        if (indices) {
+            i1 = indices[f++];
+            i2 = indices[f++];
+            i3 = indices[f++];
+        }
+        else {
+            i1 = f++;
+            i2 = f++;
+            i3 = f++;
+        }
+
+        set(p1, positions[i1*3], positions[i1*3+1], positions[i1*3+2]);
+        set(p2, positions[i2*3], positions[i2*3+1], positions[i2*3+2]);
+        set(p3, positions[i3*3], positions[i3*3+1], positions[i3*3+2]);
+
+        sub(v21, p1, p2);
+        sub(v32, p2, p3);
+        cross(n, v21, v32);
+        // Already be weighted by the triangle area
+        for (let i = 0; i < 3; i++) {
+            normals[i1*3+i] = normals[i1*3+i] + n[i];
+            normals[i2*3+i] = normals[i2*3+i] + n[i];
+            normals[i3*3+i] = normals[i3*3+i] + n[i];
+        }
+    }
+
+    for (let i = 0; i < normals.length;) {
+        set(n, normals[i], normals[i+1], normals[i+2]);
+        normalize(n, n);
+        normals[i++] = n[0];
+        normals[i++] = n[1];
+        normals[i++] = n[2];
+    }
   }
 
   // Reorders the elements in the range [first, last) in such a way that
@@ -1535,7 +2273,19 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
 
   // Create a bounding volume hierarchy of scene geometry
 
-  const size = new THREE$1.Vector3();
+
+  class Box3 {
+    constructor() {
+      this.min = [Infinity, Infinity, Infinity];
+      this.max = [-Infinity, -Infinity, -Infinity];
+    }
+
+    union(target) {
+      min(this.min, this.min, target.min);
+      max(this.max, this.max, target.max);
+      return this;
+    }
+  }
 
   function bvhAccel(geometry) {
     const primitiveInfo = makePrimitiveInfo(geometry);
@@ -1564,7 +2314,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
           const p = node.primitives[i];
           flat.push(
             p.indices[0], p.indices[1], p.indices[2], node.primitives.length,
-            p.faceNormal.x, p.faceNormal.y, p.faceNormal.z, p.materialIndex
+            p.faceNormal[0], p.faceNormal[1], p.faceNormal[2], p.materialIndex
           );
           isBounds.push(false);
         }
@@ -1572,8 +2322,8 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
         const bounds = node.bounds;
 
         flat.push(
-          bounds.min.x, bounds.min.y, bounds.min.z, splitAxisMap[node.splitAxis],
-          bounds.max.x, bounds.max.y, bounds.max.z, null // pointer to second shild
+          bounds.min[0], bounds.min[1], bounds.min[2], splitAxisMap[node.splitAxis],
+          bounds.max[0], bounds.max[1], bounds.max[2], null // pointer to second shild
         );
 
         const i = flat.length - 1;
@@ -1621,39 +2371,50 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
 
   function makePrimitiveInfo(geometry) {
     const primitiveInfo = [];
-    const indices = geometry.getIndex().array;
-    const position = geometry.getAttribute('position');
-    const materialMeshIndex = geometry.getAttribute('materialMeshIndex');
+    const indices = geometry.indices.array;
+    const position = geometry.position;
+    const materialMeshIndex = geometry.materialMeshIndex;
 
-    const v0 = new THREE$1.Vector3();
-    const v1 = new THREE$1.Vector3();
-    const v2 = new THREE$1.Vector3();
-    const e0 = new THREE$1.Vector3();
-    const e1 = new THREE$1.Vector3();
+    const v0 = [0, 0, 0];
+    const v1 = [0, 0, 0];
+    const v2 = [0, 0, 0];
+    const e0 = [0, 0, 0];
+    const e1 = [0, 0, 0];
 
     for (let i = 0; i < indices.length; i += 3) {
       const i0 = indices[i];
       const i1 = indices[i + 1];
       const i2 = indices[i + 2];
 
-      const bounds = new THREE$1.Box3();
+      const bounds = new Box3();
+      const min$1 = bounds.min;
+      const max$1 = bounds.max;
 
-      v0.fromBufferAttribute(position, i0);
-      v1.fromBufferAttribute(position, i1);
-      v2.fromBufferAttribute(position, i2);
-      e0.subVectors(v2, v0);
-      e1.subVectors(v1, v0);
+      position.getItem(v0, i0);
+      position.getItem(v1, i1);
+      position.getItem(v2, i2);
 
-      bounds.expandByPoint(v0);
-      bounds.expandByPoint(v1);
-      bounds.expandByPoint(v2);
+      sub(e0, v2, v0);
+      sub(e1, v1, v0);
 
+      min(min$1, min$1, v0);
+      min(min$1, min$1, v1);
+      min(min$1, min$1, v2);
+      max(max$1, max$1, v0);
+      max(max$1, max$1, v1);
+      max(max$1, max$1, v2);
+
+      const faceNormal = [];
       const info = {
         bounds: bounds,
-        center: bounds.getCenter(new THREE$1.Vector3()),
+        center: [
+          (min$1[0] + max$1[0]) / 2,
+          (min$1[1] + max$1[1]) / 2,
+          (min$1[2] + max$1[2]) / 2
+        ],
         indices: [i0, i1, i2],
-        faceNormal: new THREE$1.Vector3().crossVectors(e1, e0).normalize(),
-        materialIndex: materialMeshIndex.getX(i0)
+        faceNormal: normalize(faceNormal, cross(faceNormal, e1, e0)),
+        materialIndex: materialMeshIndex.array[i0 * 2]
       };
 
       primitiveInfo.push(info);
@@ -1663,7 +2424,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
   }
 
   function recursiveBuild(primitiveInfo, start, end) {
-    const bounds = new THREE$1.Box3();
+    const bounds = new Box3();
     for (let i = start; i < end; i++) {
       bounds.union(primitiveInfo[i].bounds);
     }
@@ -1673,12 +2434,12 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     if (nPrimitives === 1) {
       return makeLeafNode(primitiveInfo.slice(start, end), bounds);
     } else {
-      const centroidBounds = new THREE$1.Box3();
+      const centroidBounds = new Box3();
       for (let i = start; i < end; i++) {
-        centroidBounds.expandByPoint(primitiveInfo[i].center);
+        min(centroidBounds.min, centroidBounds.min, primitiveInfo[i].center);
+        max(centroidBounds.max, centroidBounds.max, primitiveInfo[i].center);
       }
       const dim = maximumExtent(centroidBounds);
-
 
       let mid = Math.floor((start + end) / 2);
 
@@ -1702,7 +2463,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
         const buckets = [];
         for (let i = 0; i < 12; i++) {
           buckets.push({
-            bounds: new THREE$1.Box3(),
+            bounds: new Box3(),
             count: 0,
           });
         }
@@ -1719,8 +2480,8 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
         const cost = [];
 
         for (let i = 0; i < buckets.length - 1; i++) {
-          const b0 = new THREE$1.Box3();
-          const b1 = new THREE$1.Box3();
+          const b0 = new Box3();
+          const b1 = new Box3();
           let count0 = 0;
           let count1 = 0;
           for (let j = 0; j <= i; j++) {
@@ -1771,17 +2532,18 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     return {
       child0,
       child1,
-      bounds: new THREE$1.Box3().union(child0.bounds).union(child1.bounds),
+      bounds: new Box3().union(child0.bounds).union(child1.bounds),
       splitAxis,
     };
   }
+  const size = [0, 0, 0];
 
   function maximumExtent(box3) {
-    box3.getSize(size);
-    if (size.x > size.z) {
-      return size.x > size.y ? 'x' : 'y';
+    sub(size, box3.max, box3.min);
+    if (size[0] > size[2]) {
+      return size[0] > size[1] ? '0' : '1';
     } else {
-      return size.z > size.y ? 'z' : 'y';
+      return size[2] > size[1] ? '2' : '1';
     }
   }
 
@@ -1796,8 +2558,8 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
   }
 
   function surfaceArea(box3) {
-    box3.getSize(size);
-    return 2 * (size.x * size.z + size.x * size.y + size.z * size.y);
+    sub(size, box3.max, box3.min);
+    return 2 * (size[0] * size[2] + size[0] * size[1] + size[2] * size[1]);
   }
 
   // Convert image data from the RGBE format to a 32-bit floating point format
@@ -1840,9 +2602,10 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
   function generateBackgroundMapFromSceneBackground(background) {
     let backgroundImage;
 
-    if (background.isColor) {
+    // Is [r,g,b,a] color
+    if (Array.isArray(background)) {
       backgroundImage = generateSolidMap(1, 1, background);
-    } else if (background.encoding === THREE$1.RGBEEncoding) {
+    } else if (background.image && background.image.data) { // Is rgbe data
         backgroundImage = {
           width: background.image.width,
           height: background.image.height,
@@ -1885,7 +2648,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
   function generateSolidMap(width, height, color, intensity) {
     const texels = width * height;
     const floatBuffer = new Float32Array(texels * 3);
-    if (color && color.isColor) {
+    if (color && Array.isArray(color)) {
       setBufferToColor(floatBuffer, color, intensity);
     }
     return {
@@ -1899,13 +2662,13 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     buffer.forEach(function(part, index) {
       const component = index % 3;
       if (component === 0) {
-        buffer[index] = color.r * intensity;
+        buffer[index] = color[0] * intensity;
       }
       else if (component === 1) {
-        buffer[index] = color.g * intensity;
+        buffer[index] = color[1] * intensity;
       }
       else if (component === 2) {
-        buffer[index] = color.b * intensity;
+        buffer[index] = color[2] * intensity;
       }
     });
     return buffer;
@@ -1916,24 +2679,25 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     image.data.forEach(function(part, index) {
       const component = index % 3;
       if (component === 0) {
-        image.data[index] += color.r * light.intensity;
+        image.data[index] += color[0] * light.intensity;
       }
       else if (component === 1) {
-        image.data[index] += color.g * light.intensity;
+        image.data[index] += color[1] * light.intensity;
       }
       else if (component === 2) {
-        image.data[index] += color.b * light.intensity;
+        image.data[index] += color[2] * light.intensity;
       }
     });
   }
 
   function addDirectionalLightToEnvMap(light, image) {
-    const sphericalCoords = new THREE$1.Spherical();
-    const lightDirection = light.position.clone().sub(light.target.position);
+    const lightDirection = light.direction;
+    const sphericalCoords = eulerToSpherical(lightDirection[0], lightDirection[1], lightDirection[2]);
 
-    sphericalCoords.setFromVector3(lightDirection);
     sphericalCoords.theta = (Math.PI * 3 / 2) - sphericalCoords.theta;
-    sphericalCoords.makeSafe();
+    // make safe
+    var EPS = 0.000001;
+    sphericalCoords.phi = Math.max(EPS, Math.min(Math.PI - EPS, sphericalCoords.phi));
 
     return addLightAtCoordinates(light, image, sphericalCoords);
   }
@@ -1959,11 +2723,12 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     const intensityFromAngleFunction = useThreshold ? getIntensityFromAngleDifferentialThresholded : getIntensityFromAngleDifferential;
 
     let begunAddingContributions = false;
-    let currentCoords = new THREE$1.Spherical();
+    let currentCoords = {
+      radius: 1
+    };
 
     // Iterates over each row from top to bottom
     for (let i = 0; i < xTexels; i++) {
-
       let encounteredInThisRow = false;
 
       // Iterates over each texel in row
@@ -1979,9 +2744,9 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
 
         const intensity = light.intensity * falloff;
 
-        floatBuffer[bufferIndex * 3] += intensity * light.color.r;
-        floatBuffer[bufferIndex * 3 + 1] += intensity * light.color.g;
-        floatBuffer[bufferIndex * 3 + 2] += intensity * light.color.b;
+        floatBuffer[bufferIndex * 3] += intensity * light.color[0];
+        floatBuffer[bufferIndex * 3 + 1] += intensity * light.color[1];
+        floatBuffer[bufferIndex * 3 + 2] += intensity * light.color[2];
       }
 
       // First row to not add a contribution since adding began
@@ -2009,7 +2774,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
 
   function getIntensityFromAngleDifferentialThresholded(originCoords, currentCoords, softness, threshold) {
     const deltaPhi = getAngleDelta(originCoords.phi, currentCoords.phi);
-    const deltaTheta =  getAngleDelta(originCoords.theta, currentCoords.theta);
+    const deltaTheta = getAngleDelta(originCoords.theta, currentCoords.theta);
 
     if(deltaTheta > threshold && deltaPhi > threshold) {
       return 0;
@@ -2030,13 +2795,15 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
   }
 
   const angleBetweenSphericals = function() {
-    const originVector = new THREE$1.Vector3();
-    const currentVector = new THREE$1.Vector3();
-
+    let originVector = [];
+    let currentVector = [];
     return (originCoords, currentCoords) => {
-      originVector.setFromSpherical(originCoords);
-      currentVector.setFromSpherical(currentCoords);
-      return originVector.angleTo(currentVector);
+      sphericalToEuler(originVector, originCoords.theta, originCoords.phi, originCoords.radius);
+      sphericalToEuler(currentVector, currentCoords.theta, currentCoords.phi, currentCoords.radius);
+
+      const theta = dot(currentVector, currentVector) / Math.sqrt(sqrLen(originVector) * sqrLen(currentVector));
+  		// clamp, to handle numerical problems
+  		return Math.acos(Math.min(Math.max(theta, -1), 1));
     };
   }();
 
@@ -2058,6 +2825,32 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     target.phi = (Math.PI * y) / height;
     target.theta = (2.0 * Math.PI * x) / width;
     return target;
+  }
+
+  function eulerToSpherical(x, y, z) {
+
+    const radius = Math.sqrt(x * x + y * y + z * z);
+
+    if (radius === 0 ) {
+      return {
+        radius: 0,
+        theta: 0,
+        phi: 0
+      };
+    } else {
+      return {
+        theta: Math.atan2(x, z),
+        phi: Math.acos(Math.min(Math.max(y / radius, -1), 1)),
+        radius
+      };
+    }
+  }
+
+  function sphericalToEuler(out, theta, phi, radius) {
+    const sinPhiRadius = Math.sin(phi) * radius;
+    out[0] = sinPhiRadius * Math.sin(theta);
+    out[1] = Math.cos(phi) * radius;
+    out[2] = sinPhiRadius * Math.cos(theta);
   }
 
   // Create a piecewise 2D cumulative distribution function of light intensity from an env map
@@ -3126,7 +3919,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
 
   var fragment$1 = {
   includes: [
-    constants$1,
+    constants,
     rayTraceCore,
     textureLinear,
     materialBuffer,
@@ -3418,7 +4211,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
     }
 
     function setCamera(camera) {
-      renderPass.setUniform('camera.transform', camera.matrixWorld.elements);
+      renderPass.setUniform('camera.transform', camera.matrixWorld);
       renderPass.setUniform('camera.aspect', camera.aspect);
       renderPass.setUniform('camera.fov', 0.5 / Math.tan(0.5 * Math.PI * camera.fov / 180));
     }
@@ -3496,14 +4289,14 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
     // create bounding volume hierarchy from a static scene
     const bvh = bvhAccel(geometry);
     const flattenedBvh = flattenBvh(bvh);
-    const numTris = geometry.index.count / 3;
+    const numTris = geometry.indices.count / 3;
 
     const renderPass = makeRenderPass(gl, {
       defines: {
         OES_texture_float_linear,
         BVH_COLUMNS: textureDimensionsFromArray(flattenedBvh.count).columnsLog,
         INDEX_COLUMNS: textureDimensionsFromArray(numTris).columnsLog,
-        VERTEX_COLUMNS: textureDimensionsFromArray(geometry.attributes.position.count).columnsLog,
+        VERTEX_COLUMNS: textureDimensionsFromArray(geometry.position.count).columnsLog,
         STACK_SIZE: flattenedBvh.maxDepth,
         BOUNCES: bounces,
         USE_GLASS: materials.some(m => m.transparent),
@@ -3519,11 +4312,11 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
     renderPass.setTexture('normalMap', materialBuffer.textures.normalMap);
     renderPass.setTexture('pbrMap', materialBuffer.textures.pbrMap);
 
-    renderPass.setTexture('positionBuffer', makeDataTexture(gl, geometry.getAttribute('position').array, 3));
+    renderPass.setTexture('positionBuffer', makeDataTexture(gl, geometry.position.array, 3));
 
-    renderPass.setTexture('normalBuffer', makeDataTexture(gl, geometry.getAttribute('normal').array, 3));
+    renderPass.setTexture('normalBuffer', makeDataTexture(gl, geometry.normal.array, 3));
 
-    renderPass.setTexture('uvBuffer', makeDataTexture(gl, geometry.getAttribute('uv').array, 2));
+    renderPass.setTexture('uvBuffer', makeDataTexture(gl, geometry.uv.array, 2));
 
     renderPass.setTexture('bvhBuffer', makeDataTexture(gl, flattenedBvh.buffer, 4));
 
@@ -3604,7 +4397,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
 
     let renderWidth;
     let renderHeight;
-    let scale = new THREE$1.Vector2(1, 1);
+    let scale = { x: 1, y: 1};
 
     let pixelsPerFrame = pixelsPerFrameEstimate(gl);
 
@@ -3618,7 +4411,8 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
       const aspectRatio = fullWidth / fullHeight;
       renderWidth = Math.round(clamp(Math.sqrt(pixelsPerFrame * aspectRatio), 1, fullWidth));
       renderHeight = Math.round(clamp(renderWidth / aspectRatio, 1, fullHeight));
-      scale.set(renderWidth / fullWidth, renderHeight / fullHeight);
+      scale.x = renderWidth / fullWidth;
+      scale.y = renderHeight / fullHeight;
     }
 
     function adjustSize(elapsedFrameMs) {
@@ -3787,12 +4581,9 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
         fragment: fragment$2
       });
 
-    const historyCamera = new THREE$1.Matrix4();
-
-    function setPreviousCamera(camera) {
-      historyCamera.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-
-      renderPass.setUniform('historyCamera', historyCamera.elements);
+    function setPreviousCamera(previousCamera) {
+      const matrix = mul([], previousCamera.projectionMatrix, previousCamera.matrixWorldInverse);
+      renderPass.setUniform('historyCamera', matrix);
     }
 
     function setJitter(x, y) {
@@ -3942,11 +4733,11 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
   };
 
   const toneMapFunctions = {
-    [THREE$1.LinearToneMapping]: 'linear',
-    [THREE$1.ReinhardToneMapping]: 'reinhard',
-    [THREE$1.Uncharted2ToneMapping]: 'uncharted2',
-    [THREE$1.CineonToneMapping]: 'cineon',
-    [THREE$1.ACESFilmicToneMapping]: 'acesFilmic'
+    [LinearToneMapping]: 'linear',
+    [ReinhardToneMapping]: 'reinhard',
+    [Uncharted2ToneMapping]: 'uncharted2',
+    [CineonToneMapping]: 'cineon',
+    [ACESFilmicToneMapping]: 'acesFilmic'
   };
 
   function makeToneMapPass(gl, params) {
@@ -4117,10 +4908,40 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
 
   var noiseBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABAEAAAAADfkvJBAAAbsklEQVR4nA3UhQIIvBoA0E830810M91MN9PNdDPd/ulmupluppvpZrqZbqabe89DHCiDv5GzaossZGYBp2PFIFqKdmMXIKW85edCB/RT11SD3JMQidRlL7n2ufRH1jVkFUNVc3NaZ7DP0T7/112kM1Qc3RDG0K/4uN7CPC7OmtFRZK3Jy3fhSSySKIZXopTsnIhN69JjLHJYYnfpZu44hnV+UkhG/lPd/D+fIVwWtdhhupVPJmtsLFIhjHA7UUqY4fPIQ2qdKxviqH2sugJ2nC+1ZdV0vEF3RGNcMd4KdvIXaJnujdPrKj4ifkeX2f04avjEbqO0ogI/rD7zhmy6GKG/2w32IetIX5vE9DbrS+CNy4sbmgXoiaug48lV4bVKZgluwPujd+Ioa+KjuntypepEEvl/YYCYTq6w4aaReGMShwLkC4nvq7jFKJmLpoepHJTag/h2aMklShou+tyip5wm67P2/CnvH7K6zuq+KGvy2rkkrR4mc4dpUNTEFHDId9TXQiST3RxHO0lHNgNFIA/Ub1kC0pOlNBf77EtyZ0ejxvikzySL8C8hNWyyc1GvcBCusv/otvBO3YSj+KvvRlKgoNaF/GEB64prsx8qFRwVJcRmMk8l5E5swfHMPuhlr9DmtrLeqs7KOrCMQSpeGW/zH5F2dc0AXZhcp9IthLZyuxpHrkNnp0JfnsY+55XkAtgSOvsWzps8uoJ5GtpAXRWZ5TK9cEM1WVRWC81ZUstPZHHkC7GDjZfl7BJ+VcXkI8RfVIMW0Jq95oxE0R+MDQnMX97DPhYjEXzHM0LvUNyODhdDCvJdNmXlfFp0RsbBNclTj8hpXofsCgVYsAnwPRTNTiTLxZkQW43BmK6wHk7Y0iSdXIfyK8/aQULdx1/hJc0JkRE/UgNDc/dGZWanTCs2WQ0W6Xh7PZGuDMXEaLtIRMZcZAM4ieOwO661Qf4xVyhLOOA2mLe0JyvIDrBhUA42ioUiMmrHJ9te6jwtbQ6xWrKf/ED3qKJ0qvzO2of57KkcyMBvNZndbLTX/iWNaWTezm9E8cleKOSEXK1B3LDfeGk4yx/b7L5+uAvp6UVC/UYAhvPLvSwTWm+qqO5saYjh79LadBJaAR90ct9S/GGZ7Q1zhKyTOUJ9MzT85IldVjLLduUOqovEaASJbXeZ37oFv0w/sOGhvMzpVrL/2MeQx8+ldfQU/QBXIqn8NtHAHjCzaTJk+CDS0e6Wk8N7GEDgoR4rG5M/Zig/LD6hEr6VHmxzmijoKu/oZ+p84oEeiwegquE7pBZPYXEoyLeQ66wRicLXmOzWoib6mq6KUoWxuriq62OQh647TUmn0RuuIjtPfuEkcMQtwJ/IaJabRRe9fRX2Q8Z1L2UNlMclpfMFdKYr+XkVEeb6vChZuOBfhNl+l/hly9L0/mzYIxPhBq4oimlnB273mkgwnr+S7Vnp8Fff8/3VC7IJCtqZ9AxZRnujo3wjmQ9n7WtayxwgvUhUNtJ0UjlEU9vPFhePxDLfkl6z43hhdQSW+xbyKooJEEwqTOkL1VHWc1vReFaVxbcnTGM2Uq1XNXRPos0bdtI8VBKXcZdCV1dNpLcL3DE7Cqfmi2w5JGhGFqATTUhzy7sG2+a0II4ZtupikC488mt9abdTvpYXVALXBU6wNzYLXUTPQwTxH/nNttjKDA7pQT47mopOQmxzW/f3GVhXWoguEUl5EHcUoKm8LdpiMoZV9JONpzZa7wa7hG4XzxvquHj2s5lsIrFbtrbew3+SKbiK6Ry+whAyXrTBC0kgDfwZHNOMNRnwOjHVVICdOGVo6LuFsn6GTKN6u4IeZqtN7B6vzlegD7ioW8i/u430kbtO2pABrgTPwb+xchSZ7jK/V6KxPEWK+K+oBXFmeuikt+HzrIU66KQsI9bRaGqQfKqSkMNumbnN4/ljkFsPxqnDElSF32L17D8UhxbUI8xnuwk/0znwXXcGGmD4QpPo5n6kTod70Zb2oI8Y6pFJKiuLoab7bXBEj+CXFTOH4A4kV/1JNjNRLrexaEX5Ht0xQ1RRskzmhCd+rmnFi9hLeqHe7svy7Lq+/+Mq6am+A/X8e+iptvqcbIjzqCOfbW6SpKQ22gPt8HgTFUMPd9kWgKd2O45Pr0EuOlK8waXFfriga7sXrLlKZZbrgeaPnmsrurd+n2H8hugjc+i1OCpJj2vYPyQ27+lT6/f4JM0c6sJIHwm/8AJS4tXuuo6g9qOCjvOZIrI9ZpaaauQAjwb9eTG0RMYPr2y5AHv8YhZLHvZl+DdQqrI5Z1L4QawT/FOLoQCOLR+EyTIrjcqb6YtiA4mg0/L27reYYg7JpvSVOM7G+p2uIb1iJ0hE+/DvvLW+qqfL034nLU5GQh02j8aHi/aDLS2b4ncYk/OcE+V+hhNqmF2rs1j4a1qziXYgaaDWQRetSbOwC60J8VhFSIf62k2osy7FXqpdrDAdZbuQxf5ZOCGLy6Reago9xBydmN9HBdUqX9VtUYdIKZOGbGAFxEDXjLxDmeVXsd5WIOmlhN0kqe2r84o1upy+z9KLRjY/ui5qGkhNiqoL5iXN6hPbeyGa+ckKwRM6l51Ao+EG/yKruXNsrWvHkuDPKKctS4bYRnq7eIQX+at4s8lD2ovy+D/xlXUWuf2jsNiNQx9xDRwjLAgJUSd5AvfTD80U0Qk91fP8DTkBfaXx1Qhv7FMXifZRMw0MlxtxVFVNzoOTrnjoK9ObCZy5HOwjbWgTib1kFo3BJa9t7oojdJK5RpGcifO66LQ2xuIHBvxcnMcLdEoUWc0QjVhs0k3f4dnoXvREODRB5KWJ2UFTX60WcXERxFQ7uo9mDz1YVbzQddDBHQ3QxD0MPfBnsdX+p9+xg+Sybmtum4hKoJW+CG0NGSQxP/TC0AulZ1tozfATr9Ld/QfURp1kg2FqaOQ2QBZ9JNyCoeQfO0eS+SOCa0lLshW6hnulWqHi/qrMTj6Z03gzB/LMzuaXmZXJSUm7nSKACjQDVzafbiNTqUayYpjDNpqhqIzf4SfRU/KF6S+vo0MhAS/v36BoolU4JbKQO3S3nmAL88puH0GoN6tF3vg2rCzscLVcUbmKzHS/dFroBdGk8bP4Hx8DRotKtJdMa4YZKhvR2OgbnULv+lzYUfjhFusD6KaLR8aHFSSPjYmT2MP6tU1L76u4uqJYrqawEqqpW+Onm4G6KIw2CU0Z29/EIc9gKVwjH3wxNV5v8fmxVunIGB94PxYBV+I3RRM4IO8x7Ab6ZXi3aoEeoUXmtzqHVrGCsrUYpOvIFXSMgX4YQp1Qmp6xf/Ae8gR1U19NUzEdSOjApK9nPuoItqt5HE7TXPIm3sff2fm+SbioN9GcPLltyTLKeeGBjGr668sYsfuymdjM8uHjYqL5BLn4SFqRdjbnZJKgyFHIA51lEjEebtEMfqN7LlORlgreiM3B26G2g82iqssbZBQq6k+rGn5J+MMvsVRus95vMpFR9K9K4errLmJFSMO/iepoBu6CfptR4QzqxpOYH6ERP4xmqS4uKzz3V2RS0SnMNwnYKvdW5Bd16FdS0kWlDeQ2VIMEJtgeVJ7GZIdDYQldWQ6UVK2mM1l000/MRyn5GpGZDkRbQ1RUCs/HLcMDV4hV1/OkEZFpRX+f5zfSHGQR7W2obdeiMnK3qQarTK7wEiq5vTqWXayqhyF4By5l6+HDPKK4AZtVRnoHjVBv8Syd1VocyY2UP9g8c15PpXBNVIET8MnVd8/oNlaGcnZJBZoQ7uAe4SjJAWNdX3AkNrQTQ+ClmMxO23i4nXseStC+4agkPDYeChdcOzLRJ2f/2S+ukJqsW/tvKoN4bP5/sOpHxuN5qC3p5VbaizIefWBKkKWkCc+DO5paPAHAP7wQj+VFRVp/zhPy3Ufw+8I4VsE1QVPtS1ZLf6eJ5Qr3Se3GxfURld71EhvEHJXVbLdJzUL/2nk6nX1mGcxdXUpvIg2gt7rADrkoYq0ogKbYXyK1pOwljuEO0rykAh5k2pMp6hR7rVO7h3IY2Y6gOYpsBqhWfp/sQcbbZa6m7uge0dx8pUgjd9GY5CyUldNEXX3L5JRLaHP2G5UhDtfnn8Qk3sak8Y1dUR5BatyTnyTR2PWwnCVCZe09NdwLG8tpvl3nJCd8dfzPNFMp1Wb4YuuihKIPWkP2k5I0o4OVJB96wDby2Oy2TAwv9VAxh8dFJ9EvU1S390Pdekx8d0jrxgik35GaLDoeZR7ZhH4IqyzO+/WiNzkkGNrOm8MvN4dmom9kbtuCzgy14K097SrhJuoeDEMJ7CI5Tjwn+3AmfjkUQpXUTR+DzdDPKVRgh23w1c0MUoI1EYchky6st4hefmS4bhZhr5vJ9/QYfUpbywukv9iib4S8msMqOE6iqH86px6L3oubJike6fJBB1ODDTZb6V+fAvapLL6DTGQ+2hm2k1svL8litoeKxZaRIXq2/U3HsDb6ghQBJqP4OB29iP4Lv/FaVZlctV9QM5tC1UGRbCWRBSfQs/UOFAGtlhX8VJJMLTD7VQY6HRU23ehdXAYlJHN5FlkRvXQHdDzx2I8Lx1A3sxTd8MXdOjVKH4BCOp2pIx6zrHwar6qO6uYB3FaXXdYNycNXCUNlY9TFLwq5SFuemg60UdhieVa8hml4v/2sHOsDNV1JGM5zmx/U2qKhk/lq+7jXaCuuYxaTPba1OuMHhY16GiuJVonzKBUtjEDVtwPxJP+cXUaRfD/1w5zS0Ulr9DXcQPnIK39Xdgkn+WJahGzGkI1cda/xFhfNn6KP1R7c2Y4JZSBnWK26kkJhs51E/tGk8m5oInvSjOI5risjuorqlI8X0oZh+JmKQeuhn7KLjKmvmd6iCVnIKtMH5KOM6zGu5nP5hmixMLo8Ge0P6jWyD0ukR7F0lqIPEMc/gv0OIsqZvCSug8eZ964gnYXr+LsqPmojHrG0apiIzg6TtkyHc7BHIDzTXuL/yQ38Dhsnm5OPfCorYK/LFTKPOU4xr+m/6WzydVCmPWwM5+UuN9e1Ce/8TRbfdJVzbCrWQJTUO+R8V5Ouh6m6T2jpqllYDfew5Ylcb1teraRxUFb8xxp6zFWH+eqtbIhzomc+DRunqvv3doVoKfOEJGoRKilzmAt4B69k+0FyN0m2ED5ss6NkNLTbn1LDAmHU/QDBj5oU8j9cxLxi2dUd+z5E8RfNT9NUHvApzRU/Bv1R0MEPlER9Nzuhpb/lhmsLxUJfP8EkYWdUCbyW3QzlbTco4AfhKEDNUfeY7pLt8U/a063mUaGD+4wtofwtmo0L2WWqlSxHErH0aDltYsbwqHqNq2CnuJ3qdKjJh/hlYYrsKLKwwTy2eOnzyrIMB1A0rmhiNc3Iz9tkvJt44ZqhJQ70F+jhW8CIgNQuO49/Q8bcJ5NxWlaVj6Yx/VVIZWeY2uK+zuw3hSEhIu2hE5NLfiC9p//I7vq6i6+fioJwF2Uyf2lzHoGt521FPlUJrH+AioQzvJtcJnaGEwHewSXxGFExyX7y81hVsQGng6shr9lG74TM5KdX/LyLIevpKyin6sz/Qj/0MjTQh2g594Yct6NVPL5QNUC3QlX/RR3hOXE9th5Nhf2hBswWfdVZVJsvMQNoGnOVfvNx6Qudgo9Ra/hMVJV8wdF1XQwFSYqwzgxjkVQ9kS+cZjHEhzAK6qMKYlZIjg+ZGqIvykCWBy4T0dlkBykCq33WsIAOAoJaQjH/V5w1uekes5plQOPRfBuTFmGvWRueVX9VW2V7GcccoE90CTSW7cXzaU+9hdflUeUTkk001/PDCAnbTRXb2h4jPeCZ2O0Gh1JuOu2M97PnZjBd6QrJDuqBL60+kuH4BK+Fo8uzLjmaoO4Z4DvsCpZM9DJtlWKvUEnVmTVVj/SOUFmOxBHCZV7CJJETIKA8rIuZKavxzKaxvQSlxD/exg9g130ifoH20pBJPKAz2F+bwyVUq2Qrd98mshdVNhVTtjJXSFx4wzegSfhAKECfcY1u4Wamu3pPqogO+Fu4bifDU1MZRfepxAh8EeLYn0i4Ey6NWwYD4Yhp6hfK8uiGimFPubcsYXiI/nO58QmN5V4+zm1kpdl3AtoeFLF0MT0Wbqk5KJ37rmqFTWYR+4vLsGN4BM3uGoYUJgLv5irINGiw+upKhA3qOIxkiQjVGfR+uo7dRAv4B1WLbqApcD472903Hz2T6/0jmR6G0xWmEWz2g3U7uYZF1FNgKX7PK5p85lXoGMBAMzzA17Kb+EnZmFfk/eghNI4W9r1pGjGZ14YvbIHcHQbYy/Cbb0FTcW61x83ySGRGjc0SOC/qqKE+p28MfV0hfJhNV0P4VdGQdICcYrKPz/Lb306IfSKl+66z83LiKPokGeuq4pI5oqFMzY6FSQC50RXxgifnnckXEUfkZS9kFNJCn0b38Q4aWXRRt2Rl/pLMkll4fdwuPNaRXW11xT1lBdE2KfBblwAdDz/dNhIJtSZZzFtdWq+BqHZPKB8ukbZwCkf0Ne19X1hMFAvsLZIWFyPGnTe36TC9Ej8U5Tkk8J/0Ai9JpnCJ7iLz+VWzFqqEdyaXGqSWk8I4vYovWonifKW2Iok7p8boFaozGsinis86MpknWoeJoazD4OW5UEXvcxNoUvdDdDdP5Ag7V2xypbHy/eGcjY56yF2qGQwUz1xSaE2jit++h9mpYZpqYwuYyrAGT+QlXDsjVSrUXcwiiaCxfsYOm2lmszyrh4tY/LbrY9+GQqK8+SdSyYO2qsmqbvEi+old7nrCaL1Ed7Gx8B05gJ82C1FGFds3FM9tDvUJa9E4vNJVZTLzy89i2dg4sLQmFMGZ8TkH61lUf4Q94D1xRPTYMZst/IK9vjhskJdJeTdKfXNMdOfvVR5eDS3STUlGczIYHEvdhxZ2LR1ud/NYpqYIMqEs7P6yTbIpz8eru61QjH4mg1AybF17mgESqAN4PRnl8uvTsBpT9SlsJ4tgBKtjIZXua36TRmirSIo+iqX8FIol7pKx5CNEox1EdpGC3WWR5C4/Qf+wm3Rc9Z+fhdraPGi8KsWdT0Y7idMylzVwldSXGf1MeGZSiFGe+1tin67kr6ixag26TYYaSi771i5ueEjr+U4+neqPY6H37KaEFzBGFqfpuZIXUEsyIJST01xd2walDwvtGd0Xr7al/ALSXKbRNHSh1/xe9cHVDs+1hv7ul6xPX5ppZAjlZm446vuIsuiiW+rf8Yhmil+Bc0N3Ej3UxAXcTzWdZxEhaN3HRJaX5VMyyR3jLXxZDTnkbrsM3cA1eD52UGL2imx3xA7FB2wN+c9Opo3UG3rZDeIn9Wz2kCfTRVwEesH2oCn0MRHFzZWZcHm4y8GmVp/4BBzd7pXZbBd+3Kehjfw/N0duh2e4hTmuouCuvjrbo4uZaX5DqOyT+PxsJXTBMIOfstFd2/BF/8fnyximG1rFk/Bb6AWOywqHHSYhPhjy0zjuOWSndcUAMwVVtGtDZrFT1FCF+Bboxaz+wYujXVBNPSRt3TBel3xHhVk/9xASyFLqjEhr+/FFxMh7YiKktkftn5CDNDW7xTd7kcU1MJRWMm9Vb55YbVIl5D36BxqFk6osFmqjl8GTjLp7qCnHWMPa24NoufkdWuo7+j/zxUx0N+hbaBqQW6VGia52kcsnkb1p1/I5vgo26CIertrZgMfT8jqxrkeJfAMtwmAWX95Uo/g814vXll5BStHMzzG50EN8RE4g1WgWNNwtUpG10jl8S1zZvvfT7Urzi5eCKOEtweoMJWKejoFKoTY0TliqpCCU+WsqI7ywhpzipVFyeKKikfE+o63t11qguWAP/Wau6OEQE52l5dkq3BGeqwimFMnktyn4J4uoS3aNakAj8XbqStjpC/nXpL354q/zo3SxATjjuEtpr7H5uiodjVHoivbLhvoxnCDdMdZn/RMz0x/k0UIz3lv/EdN0K3pYdrO72VeeH24La2aqJ7wjWeFLhjlus/jC89FaKC05oN6biWqpgGjYshGQTpdTP8ggEQ9mkuTmgqglsFkrE4UBUNreIbnEMHcE9xRN8P2wlZTjr0xKv1HOEvn531ApJFLt1WdXRk/UKSyjmdxIkke903Ftc7EEC1PVDiaNfToRT/c2j0km6I6mKqcW44GqobuOOyp4goU26hWewpfxE/QZaoo2+L50vx5N8rmG/IefiDeJeuqDiAUFwjqeWX3VU11fdoFn04N9PVhNJoSdZoDMztbZ42YhfaMvueW4Irkmp+sS+hlJLmL5y6aI2KYvhGr6kG1kopid1vuiNlY4aXO5KhJmmTo8AWmF8/qUugcq5rLxb7gCiunu2jnQhZ2C2CGD6gw71CMzw13kQ0xEVogsZdVtHHjLD4j7LiIvxpxswLwYRguoCG6H7isSi/qwwQ0Rp8U4/IeuNq/oSDsDfto8dJx9ExJJyVqwX3S9Hi2TazjLCsNtu1984NXMdnbPLbaTdCv1Xpf02+UTqMZe8QWquBlDKoeEtp3e6+qTa7gV+SnG+VIhOeWop/0g56o0EFf+QC1wOdwRPyJH1U/AvgPJYffZMqEtzo4jhfoiKdOyrT7uqqA1NIvricqK3ei1gBW8DwE5zM8Jl3CCUC8MRpH0EbscEoihOptLBntDP+/CH5RWLkfvQhn1TCahR/w201XcYEvUGZbJbnajXRWyh/Xgt/TqkIBOcEXkPBsZHtiaaKlMbWbDSdGf7ab3aSl51fe3qf3nMM3e9vF5W5/BwQT/21ZQ611W2YGPtb8hHbuuiBP+nG6Op6HVqJUlEMUexs1YH5qbTBILRCY2nORVUeh0V1X/hwrwJuy5u2KWupx0Bj1NXtBsuKkezra58+Ez9NGN1R3x0VRindg7mRGZMA8XNOd4jXCIL+IfXYMAN3RSbVUT+oTFdmfMOl1R72SvPQtpwl95zZUxn+g9MtnVMOvDbXVcRnOd+Hr6iDcWH0g6/xRvD99FYtwJR/YlbD05AmFUneyl71x3W17k8xNRMrnJR1djaUGxlsThY6ARjgBPUSc7kkeH/GQIKilgG+8KRCv8mVLcW+Z300I7NBzNJ0XZZhSR1OPSLmHdMOJF8Wf5HzD9K5zFFXG/sFIewu1RPFSOrULH1JTwUR1UMdUvNQAv5jHwTb3KxuWt8StXkuz3mfklNIcc0z3DPyhn9opkrClsVI/xqRBbwytYQq7gQTYNXi4bmGPyjk+CYuiHfj8fp3vDMZ+QZSRvzW6Yq7OilGQHFMfx3GyZXBa2DMa7S2YeuWeHyMy6p3lo29LNtDR3rq5Ljf+RI2guPkcHy9rkF2mJEvvqNI+4jRUs50FfgWy+u5uDaynIAq15dF4tPIB9KIp8L7PDUv1NVoWWJht6iQrIdfgcLu05vsbHBkGc5mECeyC2spv8F4rG++C80ICkoNXwOlIwXEOJzSyX23UIU0h/mklVoY9lfNdVL/E36VD20u4QbVxm6GeKyfGkEvrFUqPR/H9s/XjiBWp1EAAAAABJRU5ErkJggg==';
 
+  function prepareRender(renderList) {
+    const meshes = [];
+    const directionalLights = [];
+    const ambientLights = [];
+    const environmentLights = [];
+    for (let i = 0; i < renderList.length; i++) {
+      const item = renderList[i];
+      if (item instanceof Mesh) {
+        meshes.push(item);
+      }
+      else if (item instanceof DirectionalLight) {
+        directionalLights.push(item);
+      }
+      else if (item instanceof AmbientLight) {
+        ambientLights.push(item);
+      }
+      else if (item instanceof EnvironmentLight) {
+        environmentLights.push(item);
+      }
+    }
+
+    return {
+      meshes,
+      directionalLights,
+      ambientLights,
+      environmentLights
+    };
+  }
+
   function makeRenderingPipeline({
       gl,
       optionalExtensions,
-      scene,
+      renderList,
+      background,
       toneMappingParams,
       bounces, // number of global illumination bounces
     }) {
@@ -4143,7 +4964,8 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
 
     const previewSize = makeRenderSize(gl);
 
-    const decomposedScene = decomposeScene(scene);
+    const decomposedScene = prepareRender(renderList);
+    decomposedScene.background = background;
 
     const mergedMesh = mergeMeshesToGeometry(decomposedScene.meshes);
 
@@ -4151,7 +4973,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
 
     const fullscreenQuad = makeFullscreenQuad(gl);
 
-    const rayTracePass = makeRayTracePass(gl, { bounces, decomposedScene, fullscreenQuad, materialBuffer, mergedMesh, optionalExtensions, scene });
+    const rayTracePass = makeRayTracePass(gl, { bounces, decomposedScene, fullscreenQuad, materialBuffer, mergedMesh, optionalExtensions });
 
     const reprojectPass = makeReprojectPass(gl, { fullscreenQuad, maxReprojectedSamples });
 
@@ -4179,14 +5001,13 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
 
     let sampleRenderedCallback = () => {};
 
-    const lastCamera = new THREE$1.PerspectiveCamera();
-    lastCamera.position.set(1, 1, 1);
-    lastCamera.updateMatrixWorld();
+    const lastCamera = new Camera();
+    lastCamera.matrixWorld = fromTranslation([], [1, 1, 1]);
 
     let screenWidth = 0;
     let screenHeight = 0;
 
-    const fullscreenScale = new THREE$1.Vector2(1, 1);
+    const fullscreenScale = { x: 1, y: 1};
 
     let lastToneMappedScale = fullscreenScale;
 
@@ -4281,7 +5102,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
     }
 
     function areCamerasEqual(cam1, cam2) {
-      return numberArraysEqual(cam1.matrixWorld.elements, cam2.matrixWorld.elements) &&
+      return numberArraysEqual(cam1.matrixWorld, cam2.matrixWorld) &&
         cam1.aspect === cam2.aspect &&
         cam1.fov === cam2.fov;
     }
@@ -4340,7 +5161,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
       });
 
       lastToneMappedTexture = lightTexture;
-      lastToneMappedScale = lightScale.clone();
+      lastToneMappedScale = {x: lightScale.x, y: lightScale.y};
     }
 
     function renderGBuffer() {
@@ -4561,8 +5382,10 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
     const optionalExtensions = loadExtensions(gl, glOptionalExtensions);
 
     let pipeline = null;
-    const size = new THREE$1.Vector2();
+    const size = {width: 0, height: 0};
     let pixelRatio = 1;
+
+    let oldRenderList = [];
 
     const module = {
       bounces: 2,
@@ -4571,14 +5394,12 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
       needsUpdate: true,
       onSampleRendered: null,
       renderWhenOffFocus: true,
-      toneMapping: THREE$1.LinearToneMapping,
+      toneMapping: ACESFilmicToneMapping,
       toneMappingExposure: 1,
       toneMappingWhitePoint: 1,
     };
 
-    function initScene(scene) {
-      scene.updateMatrixWorld();
-
+    function initRenderList(renderList, background) {
       const toneMappingParams = {
         exposure: module.toneMappingExposure,
         whitePoint: module.toneMappingWhitePoint,
@@ -4587,7 +5408,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
 
       const bounces = module.bounces;
 
-      pipeline = makeRenderingPipeline({gl, optionalExtensions, scene, toneMappingParams, bounces});
+      pipeline = makeRenderingPipeline({gl, optionalExtensions, renderList, background, toneMappingParams, bounces});
 
       pipeline.onSampleRendered = (...args) => {
         if (module.onSampleRendered) {
@@ -4600,7 +5421,9 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
     }
 
     module.setSize = (width, height, updateStyle = true) => {
-      size.set(width, height);
+      size.width = width;
+      size.height = height;
+
       canvas.width = size.width * pixelRatio;
       canvas.height = size.height * pixelRatio;
 
@@ -4614,19 +5437,18 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
       }
     };
 
-    module.getSize = (target) => {
-      if (!target) {
-        target = new THREE$1.Vector2();
-      }
-
-      return target.copy(size);
+    module.getSize = () => {
+      return {
+        width: size.width,
+        height: size.height
+      };
     };
 
-    module.setPixelRatio = (x) => {
-      if (!x) {
+    module.setPixelRatio = (pr) => {
+      if (!pr) {
         return;
       }
-      pixelRatio = x;
+      pixelRatio = pr;
       module.setSize(size.width, size.height, false);
     };
 
@@ -4654,7 +5476,19 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
 
     let lastFocus = false;
 
-    module.render = (scene, camera) => {
+    function isSameRenderList(a, b) {
+      if (a.length !== b.length) {
+        return false;
+      }
+      for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    module.render = (renderList, camera, background) => {
       if (!module.renderWhenOffFocus) {
         const hasFocus = document.hasFocus();
         if (!hasFocus) {
@@ -4666,8 +5500,9 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
         }
       }
 
-      if (module.needsUpdate) {
-        initScene(scene);
+      if (module.needsUpdate || !isSameRenderList(oldRenderList, renderList)) {
+        initRenderList(renderList, background);
+        oldRenderList = renderList.slice();
       }
 
       if (isNaN(currentTime)) {
@@ -4684,7 +5519,6 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
       isValidTime = 1;
       currentTime = NaN;
 
-      camera.updateMatrixWorld();
 
       if(module.maxHardwareUsage) {
         // render new sample for the entire screen
@@ -4729,24 +5563,290 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
     return true;
   };
 
-  if (window.THREE) {
-    /* global THREE */
-    THREE.LensCamera = LensCamera;
-    THREE.SoftDirectionalLight = SoftDirectionalLight;
-    THREE.EnvironmentLight = EnvironmentLight;
-    THREE.RayTracingMaterial = RayTracingMaterial;
-    THREE.RayTracingRenderer = RayTracingRenderer;
-    THREE.ThickMaterial = ThickMaterial;
-    THREE.ThinMaterial = ThinMaterial;
+  const toChar = String.fromCharCode;
+
+  const MINELEN = 8;
+  const MAXELEN = 0x7fff;
+
+  function setToPixels(rgbe, buffer, offset) {
+    buffer[offset] = rgbe[0];
+    buffer[offset + 1] = rgbe[1];
+    buffer[offset + 2] = rgbe[2];
+    buffer[offset + 3] = rgbe[3];
+    return buffer;
   }
 
+  function uint82string(array, offset, size) {
+      let str = '';
+      for (let i = offset; i < size; i++) {
+          str += toChar(array[i]);
+      }
+      return str;
+  }
+
+  function copyrgbe(s, t) {
+    t[0] = s[0];
+    t[1] = s[1];
+    t[2] = s[2];
+    t[3] = s[3];
+  }
+
+  // TODO : check
+  function oldReadColors(scan, buffer, offset, xmax) {
+    let rshift = 0, x = 0, len = xmax;
+    while (len > 0) {
+      scan[x][0] = buffer[offset++];
+      scan[x][1] = buffer[offset++];
+      scan[x][2] = buffer[offset++];
+      scan[x][3] = buffer[offset++];
+      if (scan[x][0] === 1 && scan[x][1] === 1 && scan[x][2] === 1) {
+        // exp is count of repeated pixels
+        for (let i = (scan[x][3] << rshift) >>> 0; i > 0; i--) {
+          copyrgbe(scan[x-1], scan[x]);
+          x++;
+          len--;
+        }
+        rshift += 8;
+      } else {
+        x++;
+        len--;
+        rshift = 0;
+      }
+    }
+    return offset;
+  }
+
+  function readColors(scan, buffer, offset, xmax) {
+      if ((xmax < MINELEN) | (xmax > MAXELEN)) {
+        return oldReadColors(scan, buffer, offset, xmax);
+      }
+      let i = buffer[offset++];
+      if (i != 2) {
+        return oldReadColors(scan, buffer, offset - 1, xmax);
+      }
+      scan[0][1] = buffer[offset++];
+      scan[0][2] = buffer[offset++];
+
+      i = buffer[offset++];
+      if ((((scan[0][2] << 8) >>> 0) | i) >>> 0 !== xmax) {
+        return null;
+      }
+      for (let i = 0; i < 4; i++) {
+        for (let x = 0; x < xmax;) {
+          let code = buffer[offset++];
+          if (code > 128) {
+            code = (code & 127) >>> 0;
+            let val = buffer[offset++];
+            while (code--) {
+              scan[x++][i] = val;
+            }
+          } else {
+            while (code--) {
+              scan[x++][i] = buffer[offset++];
+            }
+          }
+        }
+      }
+      return offset;
+  }
+
+  function parseRGBE(arrayBuffer) {
+    const data = new Uint8Array(arrayBuffer);
+    const size = data.length;
+    if (uint82string(data, 0, 2) !== '#?') {
+      return;
+    }
+    let i;
+    // find empty line, next line is resolution info
+    for (i = 2; i < size; i++) {
+      if (toChar(data[i]) === '\n' && toChar(data[i+1]) === '\n') {
+        break;
+      }
+    }
+    if (i >= size) { // not found
+      return;
+    }
+    // find resolution info line
+    i += 2;
+    let str = '';
+    for (; i < size; i++) {
+      let _char = toChar(data[i]);
+      if (_char === '\n') {
+        break;
+      }
+      str += _char;
+    }
+    // -Y M +X N
+    let tmp = str.split(' ');
+    let height = parseInt(tmp[1]);
+    let width = parseInt(tmp[3]);
+    if (!width || !height) {
+        return;
+    }
+
+    // read and decode actual data
+    let offset = i + 1;
+    let scanline = [];
+    // memzero
+    for (let x = 0; x < width; x++) {
+      scanline[x] = [];
+      for (let j = 0; j < 4; j++) {
+        scanline[x][j] = 0;
+      }
+    }
+    let pixels = new Float32Array(width * height * 4);
+    let offset2 = 0;
+    for (let y = 0; y < height; y++) {
+      offset = readColors(scanline, data, offset, width);
+      if (!offset) {
+        return null;
+      }
+      for (let x = 0; x < width; x++) {
+        setToPixels(scanline[x], pixels, offset2);
+        offset2 += 4;
+      }
+    }
+
+    return new Texture({
+      width,
+      height,
+      data: pixels
+    });
+  }
+
+  function loadRGBE(url) {
+    return fetch(url).then(res => res.arrayBuffer()).then(ab => {
+      return parseRGBE(ab);
+    });
+  }
+
+  function convertTexture(threeTexture) {
+    if (!threeTexture) {
+      return;
+    }
+    return new Texture(threeTexture.image);
+  }
+
+  function convertMaterial(threeMaterial) {
+    const material = new StandardMaterial();
+    material.color = threeMaterial.color.toArray();
+    material.emissive = threeMaterial.emissive && threeMaterial.emissive.toArray();
+    material.transparent = threeMaterial.transparent;
+    material.roughness = threeMaterial.roughness;
+    material.metalness = threeMaterial.metalness;
+    material.emissiveIntensity = threeMaterial.emissiveIntensity;
+
+    material.normalScale = threeMaterial.normalScale && threeMaterial.normalScale.toArray();
+
+    material.map = convertTexture(threeMaterial.map);
+    material.emissiveMap = convertTexture(threeMaterial.emissiveMap);
+    material.roughnessMap = convertTexture(threeMaterial.roughnessMap);
+    material.metalnessMap = convertTexture(threeMaterial.metalnessMap);
+
+    return material;
+  }
+
+  function convertGeometry(threeGeometry) {
+    const positionAttrb = threeGeometry.getAttribute('position');
+    const normalAttrb = threeGeometry.getAttribute('normal');
+    const uvAttrb = threeGeometry.getAttribute('uv');
+    const indexAttrb = threeGeometry.getIndex();
+    return new Geometry({
+      position: positionAttrb && new Attribute(positionAttrb.array, positionAttrb.itemSize),
+      normal: normalAttrb && new Attribute(normalAttrb.array, normalAttrb.itemSize),
+      uv: uvAttrb && new Attribute(uvAttrb.array, uvAttrb.itemSize),
+      indices: indexAttrb && new Attribute(indexAttrb.array, indexAttrb.itemSize),
+    });
+  }
+
+  function fromTHREEScene(scene) {
+    const meshes = [];
+    const lights = [];
+
+    scene.updateMatrixWorld(true);
+    scene.traverse(child => {
+      if (child.isMesh) {
+        if (!child.geometry) {
+          console.warn(child, 'must have a geometry property');
+        }
+        else if (!(child.material.isMeshStandardMaterial)) {
+          console.warn(child, 'must use MeshStandardMaterial in order to be rendered.');
+        } else {
+          const mesh = new Mesh(
+            convertGeometry(child.geometry),
+            convertMaterial(child.material)
+          );
+          mesh.matrixWorld = new Float32Array(child.matrixWorld.elements);
+          meshes.push(mesh);
+        }
+      }
+      else if (child.isDirectionalLight) {
+        lights.push(new DirectionalLight(
+          child.position.clone().sub(child.target.position).toArray(),
+          child.color.toArray(),
+          child.intensity
+        ));
+      }
+      else if (child.isAmbientLight) {
+        lights.push(new AmbientLight(
+          child.color.toArray(),
+          child.intensity
+        ));
+      }
+    });
+
+    const background = scene.background && (
+      scene.background.isColor
+        ? scene.background.toArray()
+        : new Texture({
+          image: {
+            data: scene.background.image.data,
+            width: scene.background.image.width,
+            height: scene.background.image.height
+          }
+        })
+      );
+
+    return {
+      background: background,
+      renderList: meshes.concat(lights)
+    };
+  }
+
+  function fromTHREECamera(threeCamera, aperture) {
+    const camera = new Camera(threeCamera.fov, threeCamera.aspect, threeCamera.near, threeCamera.far);
+    threeCamera.updateWorldMatrix(true, false);
+    camera.matrixWorld = threeCamera.matrixWorld.elements.slice();
+    if (aperture) {
+      camera.aperture = aperture;
+    }
+    return camera;
+  }
+
+  exports.ACESFilmicToneMapping = ACESFilmicToneMapping;
+  exports.AmbientLight = AmbientLight;
+  exports.Camera = Camera;
+  exports.CineonToneMapping = CineonToneMapping;
+  exports.DirectionalLight = DirectionalLight;
   exports.EnvironmentLight = EnvironmentLight;
-  exports.LensCamera = LensCamera;
-  exports.RayTracingMaterial = RayTracingMaterial;
-  exports.RayTracingRenderer = RayTracingRenderer;
-  exports.SoftDirectionalLight = SoftDirectionalLight;
-  exports.constants = constants;
+  exports.Geometry = Geometry;
+  exports.LinearToneMapping = LinearToneMapping;
+  exports.Mesh = Mesh;
+  exports.ReinhardToneMapping = ReinhardToneMapping;
+  exports.Renderer = RayTracingRenderer;
+  exports.SceneNode = SceneNode;
+  exports.ShadowCatcherMaterial = ShadowCatcherMaterial;
+  exports.StandardMaterial = StandardMaterial;
+  exports.Texture = Texture;
+  exports.ThickMaterial = ThickMaterial;
+  exports.ThinMaterial = ThinMaterial;
+  exports.Uncharted2ToneMapping = Uncharted2ToneMapping;
+  exports.fromTHREECamera = fromTHREECamera;
+  exports.fromTHREEScene = fromTHREEScene;
+  exports.loadRGBE = loadRGBE;
+  exports.parseRGBE = parseRGBE;
 
   Object.defineProperty(exports, '__esModule', { value: true });
 
 })));
+//# sourceMappingURL=RayTracingRenderer.js.map
