@@ -1875,7 +1875,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
 
     const bufferData = {};
 
-    bufferData.color = materials.map(m => m.color);
+    bufferData.color = materials.map(m => m.color.slice(0, 3));
     bufferData.roughness = materials.map(m => m.roughness);
     bufferData.metalness = materials.map(m => m.metalness);
     bufferData.normalScale = materials.map(m => m.normalScale);
@@ -2994,7 +2994,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     return texelFetch(s, unpackTexel(i, columnsLog2), 0);
   }
 
-  ivec4 fetchData(isampler2D s, int i, int columnsLog2) {
+  ivec4 fetchData(highp isampler2D s, int i, int columnsLog2) {
     return texelFetch(s, unpackTexel(i, columnsLog2), 0);
   }
 
