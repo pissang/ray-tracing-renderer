@@ -2,7 +2,7 @@
   typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
   typeof define === 'function' && define.amd ? define(['exports'], factory) :
   (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.RayTracingRenderer = {}));
-}(this, (function (exports) { 'use strict';
+})(this, (function (exports) { 'use strict';
 
   /**
    * Common utilities
@@ -31,7 +31,7 @@
    * @returns {mat4} a new 4x4 matrix
    */
 
-  function create() {
+  function create$1() {
     var out = new ARRAY_TYPE(16);
 
     if (ARRAY_TYPE != Float32Array) {
@@ -354,7 +354,7 @@
    * @returns {vec3} a new 3D vector
    */
 
-  function create$1() {
+  function create() {
     var out = new ARRAY_TYPE(3);
 
     if (ARRAY_TYPE != Float32Array) {
@@ -425,19 +425,6 @@
     out[1] = Math.max(a[1], b[1]);
     out[2] = Math.max(a[2], b[2]);
     return out;
-  }
-  /**
-   * Calculates the squared length of a vec3
-   *
-   * @param {ReadonlyVec3} a vector to calculate squared length of
-   * @returns {Number} squared length of a
-   */
-
-  function squaredLength(a) {
-    var x = a[0];
-    var y = a[1];
-    var z = a[2];
-    return x * x + y * y + z * z;
   }
   /**
    * Normalize a vec3
@@ -517,17 +504,31 @@
     return out;
   }
   /**
+   * Get the angle between two 3D vectors
+   * @param {ReadonlyVec3} a The first operand
+   * @param {ReadonlyVec3} b The second operand
+   * @returns {Number} The angle in radians
+   */
+
+  function angle(a, b) {
+    var ax = a[0],
+        ay = a[1],
+        az = a[2],
+        bx = b[0],
+        by = b[1],
+        bz = b[2],
+        mag1 = Math.sqrt(ax * ax + ay * ay + az * az),
+        mag2 = Math.sqrt(bx * bx + by * by + bz * bz),
+        mag = mag1 * mag2,
+        cosine = mag && dot(a, b) / mag;
+    return Math.acos(Math.min(Math.max(cosine, -1), 1));
+  }
+  /**
    * Alias for {@link vec3.subtract}
    * @function
    */
 
   var sub = subtract;
-  /**
-   * Alias for {@link vec3.squaredLength}
-   * @function
-   */
-
-  var sqrLen = squaredLength;
   /**
    * Perform some operation over an array of vec3s.
    *
@@ -542,7 +543,7 @@
    */
 
   var forEach = function () {
-    var vec = create$1();
+    var vec = create();
     return function (a, stride, offset, count, fn, arg) {
       var i, l;
 
@@ -579,7 +580,7 @@
       /**
        * @property {Float32Array} matrixWorld World transform matrix..
        */
-      this.matrixWorld = create();
+      this.matrixWorld = create$1();
     }
 
     get matrixWorldInverse() {
@@ -914,7 +915,7 @@
     };
   }
 
-  var vertex = {
+  var vertex$1 = {
   source: `
   layout(location = 0) in vec2 a_position;
 
@@ -1206,7 +1207,7 @@
 
     gl.bindVertexArray(null);
 
-    const vertexShader = makeVertexShader(gl, { vertex });
+    const vertexShader = makeVertexShader(gl, { vertex: vertex$1 });
 
     function draw() {
       gl.bindVertexArray(vao);
@@ -1219,7 +1220,7 @@
     };
   }
 
-  var vertex$1 = {
+  var vertex = {
 
   source: `
   in vec3 aPosition;
@@ -1356,7 +1357,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
 #endif
 `;
 
-  var fragment = {
+  var fragment$3 = {
 
   outputs: ['position', 'normal', 'faceNormal', 'color', 'matProps'],
   includes: [
@@ -1414,8 +1415,8 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
   function makeGBufferPass(gl, { materialBuffer, mergedMesh }) {
     const renderPass = makeRenderPass(gl, {
       defines: materialBuffer.defines,
-      vertex: vertex$1,
-      fragment
+      vertex,
+      fragment: fragment$3
     });
 
     renderPass.setTexture('diffuseMap', materialBuffer.textures.diffuseMap);
@@ -1890,21 +1891,21 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     });
 
     if (maps.map.textures.length > 0) {
-      const { relativeSizes, texture } = makeTextureArray(gl, maps.map.textures, true);
+      const { relativeSizes, texture } = makeTextureArray$1(gl, maps.map.textures, true);
       textures.diffuseMap = texture;
       bufferData.diffuseMapSize = relativeSizes;
       bufferData.diffuseMapIndex = maps.map.indices;
     }
 
     if (maps.normalMap.textures.length > 0) {
-      const { relativeSizes, texture } = makeTextureArray(gl, maps.normalMap.textures, false);
+      const { relativeSizes, texture } = makeTextureArray$1(gl, maps.normalMap.textures, false);
       textures.normalMap = texture;
       bufferData.normalMapSize = relativeSizes;
       bufferData.normalMapIndex = maps.normalMap.indices;
     }
 
     if (pbrMap.textures.length > 0) {
-      const { relativeSizes, texture } = makeTextureArray(gl, pbrMap.textures, false);
+      const { relativeSizes, texture } = makeTextureArray$1(gl, pbrMap.textures, false);
       textures.pbrMap = texture;
       bufferData.pbrMapSize = relativeSizes;
       bufferData.roughnessMapIndex = pbrMap.indices.roughnessMap;
@@ -1937,7 +1938,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     return { defines, textures };
   }
 
-  function makeTextureArray(gl, textures, gammaCorrection = false) {
+  function makeTextureArray$1(gl, textures, gammaCorrection = false) {
     const images = textures.map(t => t.image);
     const flipY = textures.map(t => t.flipY);
     const { maxSize, relativeSizes } = maxImageSize(images);
@@ -2159,7 +2160,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     });
 
     // Normal Matrix
-    const inverseTransposeMatrix = create();
+    const inverseTransposeMatrix = create$1();
     invert(inverseTransposeMatrix, matrix);
     transpose(inverseTransposeMatrix, inverseTransposeMatrix);
 
@@ -2176,14 +2177,14 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     geometry.normal = new Attribute(new Float32Array(positions.length), 3);
     const normals = geometry.normal.array;
 
-    const p1 = create$1();
-    const p2 = create$1();
-    const p3 = create$1();
+    const p1 = create();
+    const p2 = create();
+    const p3 = create();
 
-    const v21 = create$1();
-    const v32 = create$1();
+    const v21 = create();
+    const v32 = create();
 
-    const n = create$1();
+    const n = create();
 
     const len = indices ? indices.length : this.vertexCount;
     let i1, i2, i3;
@@ -2722,6 +2723,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     // functional trick to keep the conditional check out of the main loop
     const intensityFromAngleFunction = useThreshold ? getIntensityFromAngleDifferentialThresholded : getIntensityFromAngleDifferential;
 
+
     let begunAddingContributions = false;
     let currentCoords = {
       radius: 1
@@ -2735,7 +2737,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
       for (let j = 0; j < yTexels; j++) {
         const bufferIndex = j * width + i;
         currentCoords = equirectangularToSpherical(i, j, width, height, currentCoords);
-        const falloff = intensityFromAngleFunction(originCoords, currentCoords, softness, threshold);
+        let falloff = intensityFromAngleFunction(originCoords, currentCoords, softness, threshold);
 
         if(falloff > 0) {
           encounteredInThisRow = true;
@@ -2743,6 +2745,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
         }
 
         const intensity = light.intensity * falloff;
+
 
         floatBuffer[bufferIndex * 3] += intensity * light.color[0];
         floatBuffer[bufferIndex * 3 + 1] += intensity * light.color[1];
@@ -2800,10 +2803,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     return (originCoords, currentCoords) => {
       sphericalToEuler(originVector, originCoords.theta, originCoords.phi, originCoords.radius);
       sphericalToEuler(currentVector, currentCoords.theta, currentCoords.phi, currentCoords.radius);
-
-      const theta = dot(currentVector, currentVector) / Math.sqrt(sqrLen(originVector) * sqrLen(currentVector));
-  		// clamp, to handle numerical problems
-  		return Math.acos(Math.min(Math.max(theta, -1), 1));
+      return angle(originVector, currentVector);
     };
   }();
 
@@ -2864,7 +2864,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
       height: image.height + 1
     };
 
-    const cdf = makeTextureArray$1(cdfImage.width, cdfImage.height, 2);
+    const cdf = makeTextureArray(cdfImage.width, cdfImage.height, 2);
 
     for (let y = 0; y < image.height; y++) {
       const sinTheta = Math.sin(Math.PI * (y + 0.5) / image.height);
@@ -2902,7 +2902,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
   }
 
 
-  function makeTextureArray$1(width, height, channels) {
+  function makeTextureArray(width, height, channels) {
     const array = new Float32Array(channels * width * height);
 
     return {
@@ -3917,7 +3917,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
 
 `;
 
-  var fragment$1 = {
+  var fragment$2 = {
   includes: [
     constants,
     rayTraceCore,
@@ -4304,7 +4304,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
         SAMPLING_DIMENSIONS: samplingDimensions.reduce((a, b) => a + b),
         ...materialBuffer.defines
       },
-      fragment: fragment$1,
+      fragment: fragment$2,
       vertex: fullscreenQuad.vertexShader
     });
 
@@ -4455,7 +4455,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
     }
   }
 
-  var fragment$2 = {
+  var fragment$1 = {
   outputs: ['light'],
   includes: [textureLinear],
   source: `
@@ -4578,7 +4578,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
           MAX_SAMPLES: maxReprojectedSamples.toFixed(1)
         },
         vertex: fullscreenQuad.vertexShader,
-        fragment: fragment$2
+        fragment: fragment$1
       });
 
     function setPreviousCamera(previousCamera) {
@@ -4621,7 +4621,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
     };
   }
 
-  var fragment$3 = {
+  var fragment = {
   includes: [textureLinear],
   outputs: ['color'],
   source: `
@@ -4754,7 +4754,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
         EXPOSURE: toneMappingParams.exposure.toExponential()
       },
       vertex: fullscreenQuad.vertexShader,
-      fragment: fragment$3,
+      fragment,
     };
 
     renderPassConfig.defines.EDGE_PRESERVING_UPSCALE = true;
@@ -5849,5 +5849,5 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
 
   Object.defineProperty(exports, '__esModule', { value: true });
 
-})));
+}));
 //# sourceMappingURL=RayTracingRenderer.js.map
