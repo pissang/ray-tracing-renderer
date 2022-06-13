@@ -135,6 +135,7 @@ function addLightAtCoordinates(light, image, originCoords) {
   // functional trick to keep the conditional check out of the main loop
   const intensityFromAngleFunction = useThreshold ? getIntensityFromAngleDifferentialThresholded : getIntensityFromAngleDifferential;
 
+
   let begunAddingContributions = false;
   let currentCoords = {
     radius: 1
@@ -148,7 +149,7 @@ function addLightAtCoordinates(light, image, originCoords) {
     for (let j = 0; j < yTexels; j++) {
       const bufferIndex = j * width + i;
       currentCoords = equirectangularToSpherical(i, j, width, height, currentCoords);
-      const falloff = intensityFromAngleFunction(originCoords, currentCoords, softness, threshold);
+      let falloff = intensityFromAngleFunction(originCoords, currentCoords, softness, threshold);
 
       if(falloff > 0) {
         encounteredInThisRow = true;
@@ -156,6 +157,7 @@ function addLightAtCoordinates(light, image, originCoords) {
       }
 
       const intensity = light.intensity * falloff;
+
 
       floatBuffer[bufferIndex * 3] += intensity * light.color[0];
       floatBuffer[bufferIndex * 3 + 1] += intensity * light.color[1];
@@ -213,10 +215,7 @@ const angleBetweenSphericals = function() {
   return (originCoords, currentCoords) => {
     sphericalToEuler(originVector, originCoords.theta, originCoords.phi, originCoords.radius);
     sphericalToEuler(currentVector, currentCoords.theta, currentCoords.phi, currentCoords.radius);
-
-    const theta = vec3.dot(currentVector, currentVector) / Math.sqrt(vec3.sqrLen(originVector) * vec3.sqrLen(currentVector));
-		// clamp, to handle numerical problems
-		return Math.acos(Math.min(Math.max(theta, -1), 1));
+    return vec3.angle(originVector, currentVector);
   };
 }();
 
