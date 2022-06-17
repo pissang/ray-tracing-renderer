@@ -2,7 +2,7 @@
   typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
   typeof define === 'function' && define.amd ? define(['exports'], factory) :
   (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.RayTracingRenderer = {}));
-})(this, (function (exports) { 'use strict';
+}(this, (function (exports) { 'use strict';
 
   /**
    * Common utilities
@@ -31,7 +31,7 @@
    * @returns {mat4} a new 4x4 matrix
    */
 
-  function create$1() {
+  function create() {
     var out = new ARRAY_TYPE(16);
 
     if (ARRAY_TYPE != Float32Array) {
@@ -354,7 +354,7 @@
    * @returns {vec3} a new 3D vector
    */
 
-  function create() {
+  function create$1() {
     var out = new ARRAY_TYPE(3);
 
     if (ARRAY_TYPE != Float32Array) {
@@ -543,7 +543,7 @@
    */
 
   var forEach = function () {
-    var vec = create();
+    var vec = create$1();
     return function (a, stride, offset, count, fn, arg) {
       var i, l;
 
@@ -580,7 +580,7 @@
       /**
        * @property {Float32Array} matrixWorld World transform matrix..
        */
-      this.matrixWorld = create$1();
+      this.matrixWorld = create();
     }
 
     get matrixWorldInverse() {
@@ -915,7 +915,7 @@
     };
   }
 
-  var vertex$1 = {
+  var vertex = {
   source: `
   layout(location = 0) in vec2 a_position;
 
@@ -1207,7 +1207,7 @@
 
     gl.bindVertexArray(null);
 
-    const vertexShader = makeVertexShader(gl, { vertex: vertex$1 });
+    const vertexShader = makeVertexShader(gl, { vertex });
 
     function draw() {
       gl.bindVertexArray(vao);
@@ -1220,7 +1220,7 @@
     };
   }
 
-  var vertex = {
+  var vertex$1 = {
 
   source: `
   in vec3 aPosition;
@@ -1357,7 +1357,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
 #endif
 `;
 
-  var fragment$3 = {
+  var fragment = {
 
   outputs: ['position', 'normal', 'faceNormal', 'color', 'matProps'],
   includes: [
@@ -1415,8 +1415,8 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
   function makeGBufferPass(gl, { materialBuffer, mergedMesh }) {
     const renderPass = makeRenderPass(gl, {
       defines: materialBuffer.defines,
-      vertex,
-      fragment: fragment$3
+      vertex: vertex$1,
+      fragment
     });
 
     renderPass.setTexture('diffuseMap', materialBuffer.textures.diffuseMap);
@@ -1891,21 +1891,21 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     });
 
     if (maps.map.textures.length > 0) {
-      const { relativeSizes, texture } = makeTextureArray$1(gl, maps.map.textures, true);
+      const { relativeSizes, texture } = makeTextureArray(gl, maps.map.textures, true);
       textures.diffuseMap = texture;
       bufferData.diffuseMapSize = relativeSizes;
       bufferData.diffuseMapIndex = maps.map.indices;
     }
 
     if (maps.normalMap.textures.length > 0) {
-      const { relativeSizes, texture } = makeTextureArray$1(gl, maps.normalMap.textures, false);
+      const { relativeSizes, texture } = makeTextureArray(gl, maps.normalMap.textures, false);
       textures.normalMap = texture;
       bufferData.normalMapSize = relativeSizes;
       bufferData.normalMapIndex = maps.normalMap.indices;
     }
 
     if (pbrMap.textures.length > 0) {
-      const { relativeSizes, texture } = makeTextureArray$1(gl, pbrMap.textures, false);
+      const { relativeSizes, texture } = makeTextureArray(gl, pbrMap.textures, false);
       textures.pbrMap = texture;
       bufferData.pbrMapSize = relativeSizes;
       bufferData.roughnessMapIndex = pbrMap.indices.roughnessMap;
@@ -1938,7 +1938,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     return { defines, textures };
   }
 
-  function makeTextureArray$1(gl, textures, gammaCorrection = false) {
+  function makeTextureArray(gl, textures, gammaCorrection = false) {
     const images = textures.map(t => t.image);
     const flipY = textures.map(t => t.flipY);
     const { maxSize, relativeSizes } = maxImageSize(images);
@@ -2160,7 +2160,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     });
 
     // Normal Matrix
-    const inverseTransposeMatrix = create$1();
+    const inverseTransposeMatrix = create();
     invert(inverseTransposeMatrix, matrix);
     transpose(inverseTransposeMatrix, inverseTransposeMatrix);
 
@@ -2177,14 +2177,14 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     geometry.normal = new Attribute(new Float32Array(positions.length), 3);
     const normals = geometry.normal.array;
 
-    const p1 = create();
-    const p2 = create();
-    const p3 = create();
+    const p1 = create$1();
+    const p2 = create$1();
+    const p3 = create$1();
 
-    const v21 = create();
-    const v32 = create();
+    const v21 = create$1();
+    const v32 = create$1();
 
-    const n = create();
+    const n = create$1();
 
     const len = indices ? indices.length : this.vertexCount;
     let i1, i2, i3;
@@ -2299,12 +2299,6 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
     const flat = [];
     const isBounds = [];
 
-    const splitAxisMap = {
-      x: 0,
-      y: 1,
-      z: 2
-    };
-
     let maxDepth = 1;
     const traverse = (node, depth = 1) => {
 
@@ -2323,7 +2317,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
         const bounds = node.bounds;
 
         flat.push(
-          bounds.min[0], bounds.min[1], bounds.min[2], splitAxisMap[node.splitAxis],
+          bounds.min[0], bounds.min[1], bounds.min[2], node.splitAxis,
           bounds.max[0], bounds.max[1], bounds.max[2], null // pointer to second shild
         );
 
@@ -2542,9 +2536,9 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
   function maximumExtent(box3) {
     sub(size, box3.max, box3.min);
     if (size[0] > size[2]) {
-      return size[0] > size[1] ? '0' : '1';
+      return size[0] > size[1] ? 0 : 1;
     } else {
-      return size[2] > size[1] ? '2' : '1';
+      return size[2] > size[1] ? 2 : 1;
     }
   }
 
@@ -2864,7 +2858,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
       height: image.height + 1
     };
 
-    const cdf = makeTextureArray(cdfImage.width, cdfImage.height, 2);
+    const cdf = makeTextureArray$1(cdfImage.width, cdfImage.height, 2);
 
     for (let y = 0; y < image.height; y++) {
       const sinTheta = Math.sin(Math.PI * (y + 0.5) / image.height);
@@ -2902,7 +2896,7 @@ vec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, v
   }
 
 
-  function makeTextureArray(width, height, channels) {
+  function makeTextureArray$1(width, height, channels) {
     const array = new Float32Array(channels * width * height);
 
     return {
@@ -3917,7 +3911,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
 
 `;
 
-  var fragment$2 = {
+  var fragment$1 = {
   includes: [
     constants,
     rayTraceCore,
@@ -4304,7 +4298,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
         SAMPLING_DIMENSIONS: samplingDimensions.reduce((a, b) => a + b),
         ...materialBuffer.defines
       },
-      fragment: fragment$2,
+      fragment: fragment$1,
       vertex: fullscreenQuad.vertexShader
     });
 
@@ -4455,7 +4449,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
     }
   }
 
-  var fragment$1 = {
+  var fragment$2 = {
   outputs: ['light'],
   includes: [textureLinear],
   source: `
@@ -4578,7 +4572,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
           MAX_SAMPLES: maxReprojectedSamples.toFixed(1)
         },
         vertex: fullscreenQuad.vertexShader,
-        fragment: fragment$1
+        fragment: fragment$2
       });
 
     function setPreviousCamera(previousCamera) {
@@ -4621,7 +4615,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
     };
   }
 
-  var fragment = {
+  var fragment$3 = {
   includes: [textureLinear],
   outputs: ['color'],
   source: `
@@ -4754,7 +4748,7 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
         EXPOSURE: toneMappingParams.exposure.toExponential()
       },
       vertex: fullscreenQuad.vertexShader,
-      fragment,
+      fragment: fragment$3,
     };
 
     renderPassConfig.defines.EDGE_PRESERVING_UPSCALE = true;
@@ -5849,5 +5843,5 @@ void sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {
 
   Object.defineProperty(exports, '__esModule', { value: true });
 
-}));
+})));
 //# sourceMappingURL=RayTracingRenderer.js.map

@@ -30,12 +30,6 @@ export function flattenBvh(bvh) {
   const flat = [];
   const isBounds = [];
 
-  const splitAxisMap = {
-    x: 0,
-    y: 1,
-    z: 2
-  };
-
   let maxDepth = 1;
   const traverse = (node, depth = 1) => {
 
@@ -54,7 +48,7 @@ export function flattenBvh(bvh) {
       const bounds = node.bounds;
 
       flat.push(
-        bounds.min[0], bounds.min[1], bounds.min[2], splitAxisMap[node.splitAxis],
+        bounds.min[0], bounds.min[1], bounds.min[2], node.splitAxis,
         bounds.max[0], bounds.max[1], bounds.max[2], null // pointer to second shild
       );
 
@@ -273,9 +267,9 @@ const size = [0, 0, 0];
 function maximumExtent(box3) {
   vec3.sub(size, box3.max, box3.min);
   if (size[0] > size[2]) {
-    return size[0] > size[1] ? '0' : '1';
+    return size[0] > size[1] ? 0 : 1;
   } else {
-    return size[2] > size[1] ? '2' : '1';
+    return size[2] > size[1] ? 2 : 1;
   }
 }
 

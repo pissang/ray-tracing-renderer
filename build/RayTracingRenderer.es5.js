@@ -2,33 +2,7 @@
   typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
   typeof define === 'function' && define.amd ? define(['exports'], factory) :
   (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.RayTracingRenderer = {}));
-})(this, (function (exports) { 'use strict';
-
-  function ownKeys(object, enumerableOnly) {
-    var keys = Object.keys(object);
-
-    if (Object.getOwnPropertySymbols) {
-      var symbols = Object.getOwnPropertySymbols(object);
-      enumerableOnly && (symbols = symbols.filter(function (sym) {
-        return Object.getOwnPropertyDescriptor(object, sym).enumerable;
-      })), keys.push.apply(keys, symbols);
-    }
-
-    return keys;
-  }
-
-  function _objectSpread2(target) {
-    for (var i = 1; i < arguments.length; i++) {
-      var source = null != arguments[i] ? arguments[i] : {};
-      i % 2 ? ownKeys(Object(source), !0).forEach(function (key) {
-        _defineProperty(target, key, source[key]);
-      }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function (key) {
-        Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
-      });
-    }
-
-    return target;
-  }
+}(this, (function (exports) { 'use strict';
 
   function _classCallCheck(instance, Constructor) {
     if (!(instance instanceof Constructor)) {
@@ -49,9 +23,6 @@
   function _createClass(Constructor, protoProps, staticProps) {
     if (protoProps) _defineProperties(Constructor.prototype, protoProps);
     if (staticProps) _defineProperties(Constructor, staticProps);
-    Object.defineProperty(Constructor, "prototype", {
-      writable: false
-    });
     return Constructor;
   }
 
@@ -70,6 +41,40 @@
     return obj;
   }
 
+  function ownKeys(object, enumerableOnly) {
+    var keys = Object.keys(object);
+
+    if (Object.getOwnPropertySymbols) {
+      var symbols = Object.getOwnPropertySymbols(object);
+      if (enumerableOnly) symbols = symbols.filter(function (sym) {
+        return Object.getOwnPropertyDescriptor(object, sym).enumerable;
+      });
+      keys.push.apply(keys, symbols);
+    }
+
+    return keys;
+  }
+
+  function _objectSpread2(target) {
+    for (var i = 1; i < arguments.length; i++) {
+      var source = arguments[i] != null ? arguments[i] : {};
+
+      if (i % 2) {
+        ownKeys(Object(source), true).forEach(function (key) {
+          _defineProperty(target, key, source[key]);
+        });
+      } else if (Object.getOwnPropertyDescriptors) {
+        Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+      } else {
+        ownKeys(Object(source)).forEach(function (key) {
+          Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+        });
+      }
+    }
+
+    return target;
+  }
+
   function _inherits(subClass, superClass) {
     if (typeof superClass !== "function" && superClass !== null) {
       throw new TypeError("Super expression must either be null or a function");
@@ -82,24 +87,22 @@
         configurable: true
       }
     });
-    Object.defineProperty(subClass, "prototype", {
-      writable: false
-    });
     if (superClass) _setPrototypeOf(subClass, superClass);
   }
 
   function _getPrototypeOf(o) {
-    _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf.bind() : function _getPrototypeOf(o) {
+    _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) {
       return o.__proto__ || Object.getPrototypeOf(o);
     };
     return _getPrototypeOf(o);
   }
 
   function _setPrototypeOf(o, p) {
-    _setPrototypeOf = Object.setPrototypeOf ? Object.setPrototypeOf.bind() : function _setPrototypeOf(o, p) {
+    _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) {
       o.__proto__ = p;
       return o;
     };
+
     return _setPrototypeOf(o, p);
   }
 
@@ -109,7 +112,7 @@
     if (typeof Proxy === "function") return true;
 
     try {
-      Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function () {}));
+      Date.prototype.toString.call(Reflect.construct(Date, [], function () {}));
       return true;
     } catch (e) {
       return false;
@@ -127,8 +130,6 @@
   function _possibleConstructorReturn(self, call) {
     if (call && (typeof call === "object" || typeof call === "function")) {
       return call;
-    } else if (call !== void 0) {
-      throw new TypeError("Derived constructors may only return object or undefined");
     }
 
     return _assertThisInitialized(self);
@@ -162,7 +163,7 @@
   }
 
   function _iterableToArray(iter) {
-    if (typeof Symbol !== "undefined" && iter[Symbol.iterator] != null || iter["@@iterator"] != null) return Array.from(iter);
+    if (typeof Symbol !== "undefined" && Symbol.iterator in Object(iter)) return Array.from(iter);
   }
 
   function _unsupportedIterableToArray(o, minLen) {
@@ -187,9 +188,9 @@
   }
 
   function _createForOfIteratorHelper(o, allowArrayLike) {
-    var it = typeof Symbol !== "undefined" && o[Symbol.iterator] || o["@@iterator"];
+    var it;
 
-    if (!it) {
+    if (typeof Symbol === "undefined" || o[Symbol.iterator] == null) {
       if (Array.isArray(o) || (it = _unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") {
         if (it) o = it;
         var i = 0;
@@ -222,7 +223,7 @@
         err;
     return {
       s: function () {
-        it = it.call(o);
+        it = o[Symbol.iterator]();
       },
       n: function () {
         var step = it.next();
@@ -270,7 +271,7 @@
    * @returns {mat4} a new 4x4 matrix
    */
 
-  function create$1() {
+  function create() {
     var out = new ARRAY_TYPE(16);
 
     if (ARRAY_TYPE != Float32Array) {
@@ -593,7 +594,7 @@
    * @returns {vec3} a new 3D vector
    */
 
-  function create() {
+  function create$1() {
     var out = new ARRAY_TYPE(3);
 
     if (ARRAY_TYPE != Float32Array) {
@@ -782,7 +783,7 @@
    */
 
   var forEach = function () {
-    var vec = create();
+    var vec = create$1();
     return function (a, stride, offset, count, fn, arg) {
       var i, l;
 
@@ -821,7 +822,7 @@
       /**
        * @property {Float32Array} matrixWorld World transform matrix..
        */
-      this.matrixWorld = create$1();
+      this.matrixWorld = create();
     }
 
     _createClass(SceneNode, [{
@@ -856,11 +857,6 @@
     }
 
     _createClass(Camera, [{
-      key: "projectionMatrix",
-      get: function get() {
-        return perspective([], this.fov * Math.PI / 180, this.aspect, this.near, this.far);
-      }
-    }, {
       key: "copy",
       value: function copy$1(source) {
         this.fov = source.fov;
@@ -872,21 +868,26 @@
         this.aperture = source.aperture;
         copy(this.matrixWorld, source.matrixWorld);
       }
+    }, {
+      key: "projectionMatrix",
+      get: function get() {
+        return perspective([], this.fov * Math.PI / 180, this.aspect, this.near, this.far);
+      }
     }]);
 
     return Camera;
   }(SceneNode);
 
-  var DirectionalLight = /*#__PURE__*/_createClass(function DirectionalLight(direction, color, intensity, softness) {
+  var DirectionalLight = function DirectionalLight(direction, color, intensity, softness) {
     _classCallCheck(this, DirectionalLight);
 
     this.direction = direction || [1, 1, 1];
     this.color = color || [1, 1, 1];
     this.intensity = intensity == null ? 1 : intensity;
     this.softness = softness || 0;
-  });
+  };
 
-  var AmbientLight = /*#__PURE__*/_createClass(function AmbientLight(color, intensity) {
+  var AmbientLight = function AmbientLight(color, intensity) {
     _classCallCheck(this, AmbientLight);
 
     /**
@@ -894,9 +895,9 @@
      */
     this.color = color || [1, 1, 1];
     this.intensity = intensity == null ? 1 : intensity;
-  });
+  };
 
-  var EnvironmentLight = /*#__PURE__*/_createClass(function EnvironmentLight(map, intensity) {
+  var EnvironmentLight = function EnvironmentLight(map, intensity) {
     _classCallCheck(this, EnvironmentLight);
 
     /**
@@ -904,7 +905,7 @@
      */
     this.map = map;
     this.intensity = intensity == null ? 1 : intensity;
-  });
+  };
 
   var Mesh = /*#__PURE__*/function (_SceneNode) {
     _inherits(Mesh, _SceneNode);
@@ -930,10 +931,10 @@
       return _this;
     }
 
-    return _createClass(Mesh);
+    return Mesh;
   }(SceneNode);
 
-  var StandardMaterial = /*#__PURE__*/_createClass(function StandardMaterial() {
+  var StandardMaterial = function StandardMaterial() {
     _classCallCheck(this, StandardMaterial);
 
     /**
@@ -997,14 +998,14 @@
     this.transparent = false;
     this.solid = true;
     this.shadowCaster = true;
-  });
+  };
 
-  var Texture = /*#__PURE__*/_createClass(function Texture(image) {
+  var Texture = function Texture(image) {
     _classCallCheck(this, Texture);
 
     this.image = image;
     this.flipY = false;
-  });
+  };
 
   var Attribute = /*#__PURE__*/function () {
     function Attribute(array, itemSize) {
@@ -1034,7 +1035,7 @@
 
     return Attribute;
   }();
-  var Geometry = /*#__PURE__*/_createClass(function Geometry(data) {
+  var Geometry = function Geometry(data) {
     _classCallCheck(this, Geometry);
 
     data = data || {};
@@ -1063,7 +1064,7 @@
      */
 
     this.materialMeshIndex;
-  });
+  };
 
   function loadExtensions(gl, extensions) {
     var supported = {};
@@ -1203,7 +1204,7 @@
     };
   }
 
-  var vertex$1 = {
+  var vertex = {
     source: "\n  layout(location = 0) in vec2 a_position;\n\n  out vec2 vCoord;\n\n  void main() {\n    vCoord = a_position;\n    gl_Position = vec4(2. * a_position - 1., 0, 1);\n  }\n"
   };
 
@@ -1475,7 +1476,7 @@
     gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
     gl.bindVertexArray(null);
     var vertexShader = makeVertexShader(gl, {
-      vertex: vertex$1
+      vertex: vertex
     });
 
     function draw() {
@@ -1489,7 +1490,7 @@
     };
   }
 
-  var vertex = {
+  var vertex$1 = {
     source: "\n  in vec3 aPosition;\n  in vec3 aNormal;\n  in vec2 aUv;\n  in ivec2 aMaterialMeshIndex;\n\n  uniform mat4 projView;\n\n  out vec3 vPosition;\n  out vec3 vNormal;\n  out vec2 vUv;\n  flat out ivec2 vMaterialMeshIndex;\n\n  void main() {\n    vPosition = aPosition;\n    vNormal = aNormal;\n    vUv = aUv;\n    vMaterialMeshIndex = aMaterialMeshIndex;\n    gl_Position = projView * vec4(aPosition, 1);\n  }\n"
   };
 
@@ -1497,7 +1498,7 @@
 
   var materialBuffer = "\n\nuniform Materials {\n  vec4 colorAndMaterialType[NUM_MATERIALS];\n  vec4 roughnessMetalnessNormalScale[NUM_MATERIALS];\n\n  #if defined(NUM_DIFFUSE_MAPS) || defined(NUM_NORMAL_MAPS) || defined(NUM_PBR_MAPS)\n    ivec4 diffuseNormalRoughnessMetalnessMapIndex[NUM_MATERIALS];\n  #endif\n\n  #if defined(NUM_DIFFUSE_MAPS) || defined(NUM_NORMAL_MAPS)\n    vec4 diffuseNormalMapSize[NUM_DIFFUSE_NORMAL_MAPS];\n  #endif\n\n  #if defined(NUM_PBR_MAPS)\n    vec2 pbrMapSize[NUM_PBR_MAPS];\n  #endif\n} materials;\n\n#ifdef NUM_DIFFUSE_MAPS\n  uniform mediump sampler2DArray diffuseMap;\n#endif\n\n#ifdef NUM_NORMAL_MAPS\n  uniform mediump sampler2DArray normalMap;\n#endif\n\n#ifdef NUM_PBR_MAPS\n  uniform mediump sampler2DArray pbrMap;\n#endif\n\nfloat getMatType(int materialIndex) {\n  return materials.colorAndMaterialType[materialIndex].w;\n}\n\nvec3 getMatColor(int materialIndex, vec2 uv) {\n  vec3 color = materials.colorAndMaterialType[materialIndex].rgb;\n\n  #ifdef NUM_DIFFUSE_MAPS\n    int diffuseMapIndex = materials.diffuseNormalRoughnessMetalnessMapIndex[materialIndex].x;\n    if (diffuseMapIndex >= 0) {\n      color *= texture(diffuseMap, vec3(uv * materials.diffuseNormalMapSize[diffuseMapIndex].xy, diffuseMapIndex)).rgb;\n    }\n  #endif\n\n  return color;\n}\n\nfloat getMatRoughness(int materialIndex, vec2 uv) {\n  float roughness = materials.roughnessMetalnessNormalScale[materialIndex].x;\n\n  #ifdef NUM_PBR_MAPS\n    int roughnessMapIndex = materials.diffuseNormalRoughnessMetalnessMapIndex[materialIndex].z;\n    if (roughnessMapIndex >= 0) {\n      roughness *= texture(pbrMap, vec3(uv * materials.pbrMapSize[roughnessMapIndex].xy, roughnessMapIndex)).g;\n    }\n  #endif\n\n  return roughness;\n}\n\nfloat getMatMetalness(int materialIndex, vec2 uv) {\n  float metalness = materials.roughnessMetalnessNormalScale[materialIndex].y;\n\n  #ifdef NUM_PBR_MAPS\n    int metalnessMapIndex = materials.diffuseNormalRoughnessMetalnessMapIndex[materialIndex].w;\n    if (metalnessMapIndex >= 0) {\n      metalness *= texture(pbrMap, vec3(uv * materials.pbrMapSize[metalnessMapIndex].xy, metalnessMapIndex)).b;\n    }\n  #endif\n\n  return metalness;\n}\n\n#ifdef NUM_NORMAL_MAPS\nvec3 getMatNormal(int materialIndex, vec2 uv, vec3 normal, vec3 dp1, vec3 dp2, vec2 duv1, vec2 duv2) {\n  int normalMapIndex = materials.diffuseNormalRoughnessMetalnessMapIndex[materialIndex].y;\n  if (normalMapIndex >= 0) {\n    // http://www.thetenthplanet.de/archives/1180\n    // Compute co-tangent and co-bitangent vectors\n    vec3 dp2perp = cross(dp2, normal);\n    vec3 dp1perp = cross(normal, dp1);\n    vec3 dpdu = dp2perp * duv1.x + dp1perp * duv2.x;\n    vec3 dpdv = dp2perp * duv1.y + dp1perp * duv2.y;\n    float invmax = inversesqrt(max(dot(dpdu, dpdu), dot(dpdv, dpdv)));\n    dpdu *= invmax;\n    dpdv *= invmax;\n\n    vec3 n = 2.0 * texture(normalMap, vec3(uv * materials.diffuseNormalMapSize[normalMapIndex].zw, normalMapIndex)).rgb - 1.0;\n    n.xy *= materials.roughnessMetalnessNormalScale[materialIndex].zw;\n\n    mat3 tbn = mat3(dpdu, dpdv, normal);\n\n    return normalize(tbn * n);\n  } else {\n    return normal;\n  }\n}\n#endif\n";
 
-  var fragment$3 = {
+  var fragment = {
     outputs: ['position', 'normal', 'faceNormal', 'color', 'matProps'],
     includes: [constants, materialBuffer],
     source: "\n  in vec3 vPosition;\n  in vec3 vNormal;\n  in vec2 vUv;\n  flat in ivec2 vMaterialMeshIndex;\n\n  vec3 faceNormals(vec3 pos) {\n    vec3 fdx = dFdx(pos);\n    vec3 fdy = dFdy(pos);\n    return cross(fdx, fdy);\n  }\n\n  void main() {\n    int materialIndex = vMaterialMeshIndex.x;\n    int meshIndex = vMaterialMeshIndex.y;\n\n    vec2 uv = fract(vUv);\n\n    vec3 color = getMatColor(materialIndex, uv);\n    float roughness = getMatRoughness(materialIndex, uv);\n    float metalness = getMatMetalness(materialIndex, uv);\n    float materialType = getMatType(materialIndex);\n\n    roughness = clamp(roughness, ROUGHNESS_MIN, 1.0);\n    metalness = clamp(metalness, 0.0, 1.0);\n\n    vec3 normal = normalize(vNormal);\n    vec3 faceNormal = normalize(faceNormals(vPosition));\n    normal *= sign(dot(normal, faceNormal));\n\n    #ifdef NUM_NORMAL_MAPS\n      vec3 dp1 = dFdx(vPosition);\n      vec3 dp2 = dFdy(vPosition);\n      vec2 duv1 = dFdx(vUv);\n      vec2 duv2 = dFdy(vUv);\n      normal = getMatNormal(materialIndex, uv, normal, dp1, dp2, duv1, duv2);\n    #endif\n\n    out_position = vec4(vPosition, float(meshIndex) + EPS);\n    out_normal = vec4(normal, materialType);\n    out_faceNormal = vec4(faceNormal, 0);\n    out_color = vec4(color, 0);\n    out_matProps = vec4(roughness, metalness, 0, 0);\n  }\n"
@@ -1508,8 +1509,8 @@
         mergedMesh = _ref.mergedMesh;
     var renderPass = makeRenderPass(gl, {
       defines: materialBuffer.defines,
-      vertex: vertex,
-      fragment: fragment$3
+      vertex: vertex$1,
+      fragment: fragment
     });
     renderPass.setTexture('diffuseMap', materialBuffer.textures.diffuseMap);
     renderPass.setTexture('normalMap', materialBuffer.textures.normalMap);
@@ -2006,7 +2007,7 @@
     });
 
     if (maps.map.textures.length > 0) {
-      var _makeTextureArray = makeTextureArray$1(gl, maps.map.textures, true),
+      var _makeTextureArray = makeTextureArray(gl, maps.map.textures, true),
           relativeSizes = _makeTextureArray.relativeSizes,
           texture = _makeTextureArray.texture;
 
@@ -2016,7 +2017,7 @@
     }
 
     if (maps.normalMap.textures.length > 0) {
-      var _makeTextureArray2 = makeTextureArray$1(gl, maps.normalMap.textures, false),
+      var _makeTextureArray2 = makeTextureArray(gl, maps.normalMap.textures, false),
           _relativeSizes = _makeTextureArray2.relativeSizes,
           _texture = _makeTextureArray2.texture;
 
@@ -2026,7 +2027,7 @@
     }
 
     if (pbrMap.textures.length > 0) {
-      var _makeTextureArray3 = makeTextureArray$1(gl, pbrMap.textures, false),
+      var _makeTextureArray3 = makeTextureArray(gl, pbrMap.textures, false),
           _relativeSizes2 = _makeTextureArray3.relativeSizes,
           _texture2 = _makeTextureArray3.texture;
 
@@ -2062,7 +2063,7 @@
     };
   }
 
-  function makeTextureArray$1(gl, textures) {
+  function makeTextureArray(gl, textures) {
     var gammaCorrection = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
     var images = textures.map(function (t) {
       return t.image;
@@ -2349,7 +2350,7 @@
       indices: geometry.indices && new Attribute(geometry.indices.array, geometry.indices.itemSize)
     }); // Normal Matrix
 
-    var inverseTransposeMatrix = create$1();
+    var inverseTransposeMatrix = create();
     invert(inverseTransposeMatrix, matrix);
     transpose(inverseTransposeMatrix, inverseTransposeMatrix);
     forEach(newGeometry.position.array, 3, 0, null, transformMat4, matrix);
@@ -2366,12 +2367,12 @@
     var positions = geometry.position.array;
     geometry.normal = new Attribute(new Float32Array(positions.length), 3);
     var normals = geometry.normal.array;
-    var p1 = create();
-    var p2 = create();
-    var p3 = create();
-    var v21 = create();
-    var v32 = create();
-    var n = create();
+    var p1 = create$1();
+    var p2 = create$1();
+    var p3 = create$1();
+    var v21 = create$1();
+    var v32 = create$1();
+    var n = create$1();
     var len = indices ? indices.length : this.vertexCount;
     var i1, i2, i3;
 
@@ -2495,11 +2496,6 @@
   function flattenBvh(bvh) {
     var flat = [];
     var isBounds = [];
-    var splitAxisMap = {
-      x: 0,
-      y: 1,
-      z: 2
-    };
     var maxDepth = 1;
 
     var traverse = function traverse(node) {
@@ -2514,7 +2510,7 @@
         }
       } else {
         var bounds = node.bounds;
-        flat.push(bounds.min[0], bounds.min[1], bounds.min[2], splitAxisMap[node.splitAxis], bounds.max[0], bounds.max[1], bounds.max[2], null // pointer to second shild
+        flat.push(bounds.min[0], bounds.min[1], bounds.min[2], node.splitAxis, bounds.max[0], bounds.max[1], bounds.max[2], null // pointer to second shild
         );
 
         var _i = flat.length - 1;
@@ -2728,9 +2724,9 @@
     sub(size, box3.max, box3.min);
 
     if (size[0] > size[2]) {
-      return size[0] > size[1] ? '0' : '1';
+      return size[0] > size[1] ? 0 : 1;
     } else {
-      return size[2] > size[1] ? '2' : '1';
+      return size[2] > size[1] ? 2 : 1;
     }
   }
 
@@ -3030,7 +3026,7 @@
       width: image.width + 2,
       height: image.height + 1
     };
-    var cdf = makeTextureArray(cdfImage.width, cdfImage.height, 2);
+    var cdf = makeTextureArray$1(cdfImage.width, cdfImage.height, 2);
 
     for (var y = 0; y < image.height; y++) {
       var sinTheta = Math.sin(Math.PI * (y + 0.5) / image.height);
@@ -3068,7 +3064,7 @@
     return cdfImage;
   }
 
-  function makeTextureArray(width, height, channels) {
+  function makeTextureArray$1(width, height, channels) {
     var array = new Float32Array(channels * width * height);
     return {
       set: function set(x, y, channel, val) {
@@ -3122,7 +3118,7 @@
 
   var sampleGlass = "\n\n#ifdef USE_GLASS\n\nvoid sampleGlassSpecular(SurfaceInteraction si, int bounce, inout Path path) {\n  bool lastBounce = bounce == BOUNCES;\n  vec3 viewDir = -path.ray.d;\n  float cosTheta = dot(si.normal, viewDir);\n\n  MaterialSamples samples = getRandomMaterialSamples();\n\n  float reflectionOrRefraction = samples.s1.x;\n\n  float F = si.materialType == THIN_GLASS ?\n    fresnelSchlick(abs(cosTheta), R0) : // thin glass\n    fresnelSchlickTIR(cosTheta, R0, IOR); // thick glass\n\n  vec3 lightDir;\n\n  if (reflectionOrRefraction < F) {\n    lightDir = reflect(-viewDir, si.normal);\n  } else {\n    lightDir = si.materialType == THIN_GLASS ?\n      refract(-viewDir, sign(cosTheta) * si.normal, INV_IOR_THIN) : // thin glass\n      refract(-viewDir, sign(cosTheta) * si.normal, cosTheta < 0.0 ? IOR : INV_IOR); // thick glass\n    path.beta *= si.color;\n  }\n\n  path.misWeight = 1.0;\n\n  initRay(path.ray, si.position + EPS * lightDir, lightDir);\n\n  path.li += lastBounce ? path.beta * sampleBackgroundFromDirection(lightDir) : vec3(0.0);\n\n  path.specularBounce = true;\n}\n\n#endif\n\n";
 
-  var fragment$2 = {
+  var fragment$1 = {
     includes: [constants, rayTraceCore, textureLinear, materialBuffer, intersect, surfaceInteractionDirect, random, envMap, bsdf, sample, sampleMaterial, sampleGlass, sampleShadowCatcher],
     outputs: ['light'],
     source: function source(defines) {
@@ -3390,8 +3386,8 @@
         ambientLights = decomposedScene.ambientLights,
         environmentLights = decomposedScene.environmentLights;
     var geometry = mergedMesh.geometry,
-        materials = mergedMesh.materials;
-        mergedMesh.materialIndices; // create bounding volume hierarchy from a static scene
+        materials = mergedMesh.materials,
+        materialIndices = mergedMesh.materialIndices; // create bounding volume hierarchy from a static scene
 
     var bvh = bvhAccel(geometry);
     var flattenedBvh = flattenBvh(bvh);
@@ -3414,7 +3410,7 @@
           return a + b;
         })
       }, materialBuffer.defines),
-      fragment: fragment$2,
+      fragment: fragment$1,
       vertex: fullscreenQuad.vertexShader
     });
     renderPass.setTexture('diffuseMap', materialBuffer.textures.diffuseMap);
@@ -3556,7 +3552,7 @@
     }
   }
 
-  var fragment$1 = {
+  var fragment$2 = {
     outputs: ['light'],
     includes: [textureLinear],
     source: "\n  in vec2 vCoord;\n\n  uniform mediump sampler2D lightTex;\n  uniform mediump sampler2D positionTex;\n  uniform vec2 lightScale;\n  uniform vec2 previousLightScale;\n\n  uniform mediump sampler2D previousLightTex;\n  uniform mediump sampler2D previousPositionTex;\n\n  uniform mat4 historyCamera;\n  uniform float blendAmount;\n  uniform vec2 jitter;\n\n  vec2 reproject(vec3 position) {\n    vec4 historyCoord = historyCamera * vec4(position, 1.0);\n    return 0.5 * historyCoord.xy / historyCoord.w + 0.5;\n  }\n\n  float getMeshId(sampler2D meshIdTex, vec2 vCoord) {\n    return floor(texture(meshIdTex, vCoord).w);\n  }\n\n  void main() {\n    vec3 currentPosition = textureLinear(positionTex, vCoord).xyz;\n    float currentMeshId = getMeshId(positionTex, vCoord);\n\n    vec4 currentLight = texture(lightTex, lightScale * vCoord);\n\n    if (currentMeshId == 0.0) {\n      out_light = currentLight;\n      return;\n    }\n\n    vec2 hCoord = reproject(currentPosition) - jitter;\n\n    vec2 hSizef = previousLightScale * vec2(textureSize(previousLightTex, 0));\n    vec2 hSizeInv = 1.0 / hSizef;\n    ivec2 hSize = ivec2(hSizef);\n\n    vec2 hTexelf = hCoord * hSizef - 0.5;\n    ivec2 hTexel = ivec2(hTexelf);\n    vec2 f = fract(hTexelf);\n\n    ivec2 texel[] = ivec2[](\n      hTexel + ivec2(0, 0),\n      hTexel + ivec2(1, 0),\n      hTexel + ivec2(0, 1),\n      hTexel + ivec2(1, 1)\n    );\n\n    float weights[] = float[](\n      (1.0 - f.x) * (1.0 - f.y),\n      f.x * (1.0 - f.y),\n      (1.0 - f.x) * f.y,\n      f.x * f.y\n    );\n\n    vec4 history;\n    float sum;\n\n    // bilinear sampling, rejecting samples that don't have a matching mesh id\n    for (int i = 0; i < 4; i++) {\n      vec2 gCoord = (vec2(texel[i]) + 0.5) * hSizeInv;\n\n      float histMeshId = getMeshId(previousPositionTex, gCoord);\n\n      float isValid = histMeshId != currentMeshId || any(greaterThanEqual(texel[i], hSize)) ? 0.0 : 1.0;\n\n      float weight = isValid * weights[i];\n      history += weight * texelFetch(previousLightTex, texel[i], 0);\n      sum += weight;\n    }\n\n    if (sum > 0.0) {\n      history /= sum;\n    } else {\n      // If all samples of bilinear fail, try a 3x3 box filter\n      hTexel = ivec2(hTexelf + 0.5);\n\n      for (int x = -1; x <= 1; x++) {\n        for (int y = -1; y <= 1; y++) {\n          ivec2 texel = hTexel + ivec2(x, y);\n          vec2 gCoord = (vec2(texel) + 0.5) * hSizeInv;\n\n          float histMeshId = getMeshId(previousPositionTex, gCoord);\n\n          float isValid = histMeshId != currentMeshId || any(greaterThanEqual(texel, hSize)) ? 0.0 : 1.0;\n\n          float weight = isValid;\n          vec4 h = texelFetch(previousLightTex, texel, 0);\n          history += weight * h;\n          sum += weight;\n        }\n      }\n      history = sum > 0.0 ? history / sum : history;\n    }\n\n    if (history.w > MAX_SAMPLES) {\n      history.xyz *= MAX_SAMPLES / history.w;\n      history.w = MAX_SAMPLES;\n    }\n\n    out_light = blendAmount * history + currentLight;\n  }\n"
@@ -3570,7 +3566,7 @@
         MAX_SAMPLES: maxReprojectedSamples.toFixed(1)
       },
       vertex: fullscreenQuad.vertexShader,
-      fragment: fragment$1
+      fragment: fragment$2
     });
 
     function setPreviousCamera(previousCamera) {
@@ -3608,7 +3604,7 @@
     };
   }
 
-  var fragment = {
+  var fragment$3 = {
     includes: [textureLinear],
     outputs: ['color'],
     source: "\n  in vec2 vCoord;\n\n  uniform sampler2D lightTex;\n  uniform sampler2D positionTex;\n\n  uniform vec2 lightScale;\n\n  // Tonemapping functions from THREE.js\n\n  vec3 linear(vec3 color) {\n    return color;\n  }\n  // https://www.cs.utah.edu/~reinhard/cdrom/\n  vec3 reinhard(vec3 color) {\n    return clamp(color / (vec3(1.0) + color), vec3(0.0), vec3(1.0));\n  }\n  // http://filmicworlds.com/blog/filmic-tonemapping-operators/\n  #define uncharted2Helper(x) max(((x * (0.15 * x + 0.10 * 0.50) + 0.20 * 0.02) / (x * (0.15 * x + 0.50) + 0.20 * 0.30)) - 0.02 / 0.30, vec3(0.0))\n  const vec3 uncharted2WhitePoint = 1.0 / uncharted2Helper(vec3(WHITE_POINT));\n  vec3 uncharted2( vec3 color ) {\n    // John Hable's filmic operator from Uncharted 2 video game\n    return clamp(uncharted2Helper(color) * uncharted2WhitePoint, vec3(0.0), vec3(1.0));\n  }\n  // http://filmicworlds.com/blog/filmic-tonemapping-operators/\n  vec3 cineon( vec3 color ) {\n    // optimized filmic operator by Jim Hejl and Richard Burgess-Dawson\n    color = max(vec3( 0.0 ), color - 0.004);\n    return pow((color * (6.2 * color + 0.5)) / (color * (6.2 * color + 1.7) + 0.06), vec3(2.2));\n  }\n  // https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/\n  vec3 acesFilmic( vec3 color ) {\n    return clamp((color * (2.51 * color + 0.03)) / (color * (2.43 * color + 0.59) + 0.14), vec3(0.0), vec3(1.0));\n  }\n\n  #ifdef EDGE_PRESERVING_UPSCALE\n\n  float getMeshId(sampler2D meshIdTex, vec2 vCoord) {\n    return floor(texture(meshIdTex, vCoord).w);\n  }\n\n  vec4 getUpscaledLight(vec2 coord) {\n    float meshId = getMeshId(positionTex, coord);\n\n    vec2 sizef = lightScale * vec2(textureSize(positionTex, 0));\n    vec2 texelf = coord * sizef - 0.5;\n    ivec2 texel = ivec2(texelf);\n    vec2 f = fract(texelf);\n\n    ivec2 texels[] = ivec2[](\n      texel + ivec2(0, 0),\n      texel + ivec2(1, 0),\n      texel + ivec2(0, 1),\n      texel + ivec2(1, 1)\n    );\n\n    float weights[] = float[](\n      (1.0 - f.x) * (1.0 - f.y),\n      f.x * (1.0 - f.y),\n      (1.0 - f.x) * f.y,\n      f.x * f.y\n    );\n\n    vec4 upscaledLight;\n    float sum;\n    for (int i = 0; i < 4; i++) {\n      vec2 pCoord = (vec2(texels[i]) + 0.5) / sizef;\n      float isValid = getMeshId(positionTex, pCoord) == meshId ? 1.0 : 0.0;\n      float weight = isValid * weights[i];\n      upscaledLight += weight * texelFetch(lightTex, texels[i], 0);\n      sum += weight;\n    }\n\n    if (sum > 0.0) {\n      upscaledLight /= sum;\n    } else {\n      upscaledLight = texture(lightTex, lightScale * coord);\n    }\n\n    return upscaledLight;\n  }\n  #endif\n\n  void main() {\n    #ifdef EDGE_PRESERVING_UPSCALE\n      vec4 upscaledLight = getUpscaledLight(vCoord);\n    #else\n      vec4 upscaledLight = texture(lightTex, lightScale * vCoord);\n    #endif\n\n    // alpha channel stores the number of samples progressively rendered\n    // divide the sum of light by alpha to obtain average contribution of light\n\n    // in addition, alpha contains a scale factor for the shadow catcher material\n    // dividing by alpha normalizes the brightness of the shadow catcher to match the background env map.\n    vec3 light = upscaledLight.rgb / upscaledLight.a;\n\n    light *= EXPOSURE;\n\n    light = TONE_MAPPING(light);\n\n    light = pow(light, vec3(1.0 / 2.2)); // gamma correction\n\n    out_color = vec4(light, 1.0);\n  }\n"
@@ -3628,7 +3624,7 @@
         EXPOSURE: toneMappingParams.exposure.toExponential()
       },
       vertex: fullscreenQuad.vertexShader,
-      fragment: fragment
+      fragment: fragment$3
     };
     renderPassConfig.defines.EDGE_PRESERVING_UPSCALE = true;
     var renderPassUpscale = makeRenderPass(gl, renderPassConfig);
@@ -4732,5 +4728,5 @@
 
   Object.defineProperty(exports, '__esModule', { value: true });
 
-}));
+})));
 //# sourceMappingURL=RayTracingRenderer.es5.js.map
